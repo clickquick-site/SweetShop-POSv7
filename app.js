@@ -246,14 +246,14 @@ async function printInvoice(sale,items) {
   const w={'58mm':'54mm','80mm':'76mm','A5':'148mm','A4':'210mm'}[pSize]||'76mm';
   const now=new Date(sale.date||new Date()),dStr=now.toLocaleDateString('ar-DZ'),tStr=now.toLocaleTimeString('ar-DZ',{hour:'2-digit',minute:'2-digit'});
   let lbl=sale.debtSettlement&&sale.partialSettlement?`فاتورة تسديد جزئي #${sale.invoiceNumber}`:sale.debtSettlement?`فاتورة تسديد #${sale.invoiceNumber}`:sale.isDebt?`فاتورة دين #${sale.invoiceNumber}`:`فاتورة: #${sale.invoiceNumber}`;
-  let html=`<!DOCTYPE html><html dir="rtl"><head><meta charset="UTF-8"><style>@page{margin:4mm;size:${w} auto;}*{margin:0;padding:0;box-sizing:border-box;}body{font-family:'Courier New',monospace;font-size:9px;color:#000;width:${w};max-width:${w};overflow:hidden;-webkit-print-color-adjust:exact;}.c{text-align:center;}.b{font-weight:900;}.xl{font-size:13px;font-weight:900;}.dl{border-top:2px solid #000;margin:3px 0;}.sl{border-top:1px dashed #000;margin:3px 0;}.rw{display:flex;justify-content:space-between;align-items:baseline;gap:2px;font-size:9px;overflow:hidden;}table{width:100%;border-collapse:collapse;font-size:8px;table-layout:fixed;}th{font-weight:900;border-bottom:1px solid #000;padding:2px 1px;text-align:right;white-space:nowrap;overflow:hidden;}td{padding:2px 1px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}@media print{*{color:#000!important;}}</style></head><body>`;
+  let html=`<!DOCTYPE html><html dir="rtl"><head><meta charset="UTF-8"><style>@page{margin:4mm;size:${w} auto;}*{margin:0;padding:0;box-sizing:border-box;}body{font-family:'Courier New',monospace;font-size:12px;color:#000;width:${w};-webkit-print-color-adjust:exact;}.c{text-align:center;}.b{font-weight:900;}.xl{font-size:16px;font-weight:900;}.dl{border-top:2px solid #000;margin:5px 0;}.sl{border-top:1px dashed #000;margin:5px 0;}.rw{display:flex;justify-content:space-between;align-items:baseline;}table{width:100%;border-collapse:collapse;font-size:11px;}th{font-weight:900;border-bottom:1px solid #000;padding:3px 2px;text-align:right;}td{padding:3px 2px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}@media print{*{color:#000!important;}}</style></head><body>`;
   html+=`<div class="rw b"><span>${lbl}</span><span>${dStr} ${tStr}</span></div><div class="dl"></div>`;
   if(pLogo==='1'&&sLogo)html+=`<div class="c"><img src="${sLogo}" style="max-width:70px;max-height:70px;display:block;margin:0 auto 4px;"/></div>`;
   if(pName==='1'&&sName)html+=`<div class="c xl b">${sName}</div>`;
   if(pPhone==='1'&&sPhone)html+=`<div class="c b">${sPhone}</div>`;
   if(pAddr==='1'&&sAddr)html+=`<div class="c b">${sAddr}</div>`;
   if(sale.customerName){html+=`<div class="sl"></div><div class="rw"><span class="b">الزبون:</span><span class="b">${sale.customerName}</span></div>`;if(sale.customerPhone)html+=`<div class="rw"><span class="b">الهاتف:</span><span class="b">${sale.customerPhone}</span></div>`;}
-  html+=`<div class="dl"></div><table><colgroup><col style="width:45%"><col style="width:8%"><col style="width:22%"><col style="width:25%"></colgroup><thead><tr><th>المنتج</th><th style="text-align:center">ك</th><th style="text-align:center">السعر</th><th style="text-align:left">المجموع</th></tr></thead><tbody>`;
+  html+=`<div class="dl"></div><table style="table-layout:fixed;width:100%"><thead><tr><th style="width:42%">المنتج</th><th style="width:8%;text-align:center">ك</th><th style="width:22%;text-align:center">السعر</th><th style="width:28%;text-align:left">المجموع</th></tr></thead><tbody>`;
   items.forEach(i=>html+=`<tr><td class="b">${i.productName}</td><td class="b" style="text-align:center">${i.quantity}</td><td class="b" style="text-align:center">${parseFloat(i.unitPrice).toFixed(2)}</td><td class="b" style="text-align:left">${parseFloat(i.total).toFixed(2)}</td></tr>`);
   html+=`</tbody></table><div class="dl"></div>`;
   if(sale.discount>0)html+=`<div class="rw b"><span>خصم:</span><span>- ${parseFloat(sale.discount).toFixed(2)} ${cur}</span></div>`;
@@ -278,14 +278,14 @@ async function printBarcodeLabel(product) {
   const bv=product.barcode||String(product.id);
   const[sName,cur,bcFont,bcType,showStore,showName,showPrice]=await Promise.all(['storeName','currency','barcodeFont','barcodeType','barcodeShowStore','barcodeShowName','barcodeShowPrice'].map(k=>getSetting(k)));
   function buildBars(code){
-    const s=String(code),N=2,W=4,H=36;
+    const s=String(code),N=2,W=5,H=45;
     let b='<div style="width:2px;height:'+H+'px;background:#000"></div><div style="width:2px;height:'+H+'px;background:#fff"></div><div style="width:2px;height:'+H+'px;background:#000"></div><div style="width:2px;height:'+H+'px;background:#fff"></div>';
     for(let i=0;i<s.length;i++){const c=s.charCodeAt(i);for(let j=0;j<5;j++){const bl=j%2===0,bit=(c>>(4-j))&1,w=bit?W:N;b+=`<div style="width:${w}px;height:${H}px;background:${bl?'#000':'#fff'}"></div>`;}b+='<div style="width:2px;height:'+H+'px;background:#fff"></div>';}
     b+='<div style="width:2px;height:'+H+'px;background:#000"></div><div style="width:2px;height:'+H+'px;background:#fff"></div><div style="width:3px;height:'+H+'px;background:#000"></div>';
-    return`<div style="display:flex;align-items:flex-end;justify-content:center;overflow:hidden;max-width:54mm">${b}</div>`;
+    return`<div style="display:flex;align-items:flex-end;justify-content:center;overflow:hidden;max-width:56mm">${b}</div>`;
   }
   const bars=bcType==='QR'?`<div style="font-size:9px;font-family:monospace;border:2px solid #000;padding:3px">[QR:${bv}]</div>`:buildBars(bv);
-  _silentPrint(`<!DOCTYPE html><html><head><meta charset="UTF-8"><style>@page{margin:1mm;size:58mm 38mm;}*{margin:0;padding:0;box-sizing:border-box;}body{font-family:'${bcFont||'Cairo'}',Arial,sans-serif;background:#fff;color:#000;width:56mm;text-align:center;padding:2px 1px;-webkit-print-color-adjust:exact;}.s{font-size:8px;font-weight:800;}.n{font-size:10px;font-weight:900;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:54mm;}.bc{font-family:'Courier New',monospace;font-size:7px;letter-spacing:2px;}.pr{font-size:12px;font-weight:900;margin-top:2px;}@media print{*{color:#000!important;}}</style></head><body>${showStore==='1'&&sName?`<div class="s">${sName}</div>`:''}${showName!=='0'?`<div class="n">${product.name}</div>`:''}${bars}<div class="bc">${bv}</div>${showPrice!=='0'?`<div class="pr">${parseFloat(product.sellPrice||0).toFixed(2)} ${cur||'دج'}</div>`:''}</body></html>`);
+  _silentPrint(`<!DOCTYPE html><html><head><meta charset="UTF-8"><style>@page{margin:1mm;size:58mm 38mm;}*{margin:0;padding:0;box-sizing:border-box;}body{font-family:'${bcFont||'Cairo'}',Arial,sans-serif;background:#fff;color:#000;width:56mm;text-align:center;padding:2px 1px;-webkit-print-color-adjust:exact;}.s{font-size:9px;font-weight:800;}.n{font-size:13px;font-weight:900;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:54mm;}.bc{font-family:'Courier New',monospace;font-size:8px;letter-spacing:3px;font-weight:900;}.pr{font-size:15px;font-weight:900;margin-top:1px;}@media print{*{color:#000!important;}}</style></head><body>${showStore==='1'&&sName?`<div class="s">${sName}</div>`:''}${showName!=='0'?`<div class="n">${product.name}</div>`:''}${bars}<div class="bc">${bv}</div>${showPrice!=='0'?`<div class="pr">${parseFloat(product.sellPrice||0).toFixed(2)} ${cur||'دج'}</div>`:''}</body></html>`);
 }
 
 // ══════════════════════════════════════════════════════════════
@@ -809,16 +809,18 @@ function _markAllRead() { _saveNotifs(_loadNotifs().map(n=>({...n,read:true})));
 
 function _injectBell() {
   const header=document.querySelector('.app-header');
-  if(!header||document.getElementById('_notifBell')) return;
-
-  const bell=document.createElement('button');
-  bell.id='_notifBell'; bell.className='notif-bell'; bell.title='الإشعارات';
-  bell.innerHTML='<i class="fa-solid fa-bell"></i><span id="_notifBadge" class="notif-badge" style="display:none;"></span>';
+  if(!header) return;
+  // الجرس موجود في HTML مباشرة — فقط نربط الـ event ونُنشئ الـ panel
+  let bell=document.getElementById('_notifBell');
+  if(!bell){
+    // fallback: إنشاء الجرس إن لم يكن في HTML
+    bell=document.createElement('button');
+    bell.id='_notifBell'; bell.className='notif-bell'; bell.title='الإشعارات';
+    bell.innerHTML='<i class="fa-solid fa-bell"></i><span id="_notifBadge" class="notif-badge" style="display:none;"></span>';
+    const menuBtn=header.querySelector('.menu-btn');
+    if(menuBtn) menuBtn.insertAdjacentElement('afterend',bell); else header.appendChild(bell);
+  }
   bell.onclick=(e)=>{e.stopPropagation();_toggleNotifPanel();};
-
-  // الجرس بين اسم المتجر وزر القائمة (☰)
-  const menuBtn=header.querySelector('.menu-btn');
-  if(menuBtn) header.insertBefore(bell,menuBtn); else header.appendChild(bell);
 
   const panel=document.createElement('div');
   panel.id='_notifPanel';
