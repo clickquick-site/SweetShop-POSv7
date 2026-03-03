@@ -1,0 +1,911 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>POS DZ - إدارة الأعمال</title>
+  <link rel="stylesheet" href="style.css"/>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"/>
+  <style>
+    /* ── Dashboard Layout ── */
+    .dash-layout { display:flex; gap:0; height:calc(100vh - 60px); overflow:hidden; }
+    .dash-sidebar {
+      width:220px; flex-shrink:0;
+      background:var(--bg-dark); border-left:1px solid var(--border);
+      display:flex; flex-direction:column; overflow-y:auto; padding:12px 8px;
+    }
+    .dash-main { flex:1; overflow-y:auto; padding:16px; }
+
+    /* Sidebar icons */
+    .dsb-item {
+      display:flex; flex-direction:column; align-items:center; justify-content:center;
+      gap:4px; padding:14px 8px; border-radius:var(--radius);
+      cursor:pointer; transition:var(--transition); margin-bottom:6px;
+      border:1px solid transparent; text-align:center;
+    }
+    .dsb-item:hover { background:var(--bg-card); border-color:var(--border); }
+    .dsb-item.active { background:var(--primary); border-color:var(--primary); box-shadow:0 0 16px var(--glow); }
+    .dsb-icon { font-size:1.6rem; line-height:1; }
+    .dsb-label { font-size:0.68rem; font-weight:700; color:var(--text-secondary); }
+    .dsb-item.active .dsb-label { color:#fff; }
+    .dsb-value {
+      font-size:0.78rem; font-weight:900; color:var(--primary-light);
+      background:var(--bg-medium); border-radius:10px; padding:1px 7px;
+    }
+    .dsb-item.active .dsb-value { background:rgba(255,255,255,0.2); color:#fff; }
+
+    /* Section panel */
+    .section-panel { display:none; }
+    .section-panel.active { display:block; }
+
+    /* Charts */
+    .chart-wrap { background:var(--bg-card); border:1px solid var(--border); border-radius:var(--radius); padding:16px; margin-bottom:16px; }
+    .chart-title { font-size:0.95rem; font-weight:700; color:var(--primary-light); margin-bottom:12px; display:flex; justify-content:space-between; align-items:center; }
+    canvas { display:block; }
+
+    /* Period selector */
+    .period-tabs { display:flex; gap:6px; margin-bottom:14px; flex-wrap:wrap; }
+    .period-tab { padding:6px 14px; border-radius:20px; border:1px solid var(--border); background:transparent; color:var(--text-secondary); cursor:pointer; font-family:'Cairo',sans-serif; font-size:0.82rem; transition:var(--transition); }
+    .period-tab.active { background:var(--primary); border-color:var(--primary); color:#fff; box-shadow:0 0 12px var(--glow); }
+
+    /* Section header with back btn */
+    .sec-header { display:flex; align-items:center; gap:10px; margin-bottom:16px; }
+    .sec-back-btn { background:var(--bg-card); border:1px solid var(--border); color:var(--text-secondary); padding:7px 14px; border-radius:var(--radius-sm); cursor:pointer; font-family:'Cairo',sans-serif; font-size:0.85rem; transition:var(--transition); }
+    .sec-back-btn:hover { border-color:var(--primary); color:var(--primary-light); }
+    .sec-title { font-size:1.1rem; font-weight:800; color:var(--primary-light); }
+
+    /* Total badge */
+    .total-banner {
+      background:linear-gradient(135deg,var(--primary-dark),var(--primary));
+      border-radius:var(--radius); padding:16px 20px; margin-bottom:14px;
+      display:flex; justify-content:space-between; align-items:center;
+      box-shadow:0 0 24px var(--glow);
+    }
+    .total-banner-label { font-size:0.85rem; color:rgba(255,255,255,0.8); }
+    .total-banner-val   { font-size:1.8rem; font-weight:900; color:#fff; font-family:Impact,sans-serif; }
+
+    /* Date search row */
+    .date-search-row { display:flex; gap:8px; align-items:center; margin-bottom:14px; flex-wrap:wrap; }
+    .date-search-row input[type="date"] { background:var(--bg-input); border:1px solid var(--border); color:var(--text-primary); padding:8px 12px; border-radius:var(--radius-sm); font-family:'Cairo',sans-serif; font-size:0.88rem; outline:none; }
+    .date-search-row input[type="date"]:focus { border-color:var(--primary); }
+
+    /* Pie chart container */
+    .pie-row { display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-bottom:16px; }
+    @media(max-width:700px) { .pie-row { grid-template-columns:1fr; } }
+
+    /* Invoice table */
+    .inv-table-wrap { background:var(--bg-card); border:1px solid var(--border); border-radius:var(--radius); overflow:hidden; margin-bottom:14px; }
+    .inv-table-header { padding:12px 16px; background:var(--bg-dark); display:flex; justify-content:space-between; align-items:center; border-bottom:2px solid var(--primary); }
+
+    /* Scale section indicator */
+    .scale-badge { background:rgba(16,185,129,0.15); border:1px solid var(--success); border-radius:var(--radius-sm); padding:4px 12px; font-size:0.78rem; color:var(--success); font-weight:700; }
+
+    /* Donut legend */
+    .donut-legend { display:flex; flex-direction:column; gap:6px; margin-top:10px; }
+    .legend-item { display:flex; align-items:center; gap:8px; font-size:0.8rem; }
+    .legend-dot { width:12px; height:12px; border-radius:50%; flex-shrink:0; }
+
+    .cancel-btn { background:rgba(239,68,68,0.15);color:var(--danger);border:1px solid rgba(239,68,68,0.3);font-size:0.75rem;padding:3px 8px;border-radius:4px;cursor:pointer; }
+    .cancel-btn:hover { background:var(--danger);color:#fff; }
+
+    /* Return btn (24h only) */
+    .return-btn { background:rgba(245,158,11,0.15);color:var(--warning);border:1px solid rgba(245,158,11,0.3);font-size:0.75rem;padding:3px 8px;border-radius:4px;cursor:pointer; }
+    .return-btn:hover { background:var(--warning);color:#fff; }
+  </style>
+</head>
+<body>
+<div class="bg-animated"></div>
+<div class="page-wrapper" style="display:flex;flex-direction:column;height:100vh;overflow:hidden;">
+  <header class="app-header" style="flex-shrink:0;">
+    <button class="menu-btn" id="menuBtn"><i class="fa-solid fa-bars"></i></button>
+    <span class="store-name" id="headerStoreName">اسم المتجر</span>
+    <div class="app-brand">
+      <span class="brand-title">POS DZ</span>
+      <span class="brand-clock" id="clockDisplay"></span>
+    </div>
+  </header>
+
+  <div class="dash-layout">
+    <!-- ── Left Sidebar Icons ── -->
+    <div class="dash-sidebar">
+      <div class="dsb-item active" onclick="showPanel('dashboard')" id="dsb-dashboard">
+        <div class="dsb-icon">📊</div>
+        <div class="dsb-label" data-i18n="repDashboard">📊 لوحة التحكم</div>
+      </div>
+      <div class="dsb-item" onclick="showPanel('daily')" id="dsb-daily">
+        <div class="dsb-icon">💰</div>
+        <div class="dsb-label" data-i18n="repDaily">💰 المداخيل اليومية</div>
+        <div class="dsb-value" id="dsb-daily-val">—</div>
+      </div>
+      <div class="dsb-item" onclick="showPanel('debts')" id="dsb-debts">
+        <div class="dsb-icon">💳</div>
+        <div class="dsb-label" data-i18n="repDebts">💳 الديون اليومية</div>
+        <div class="dsb-value" id="dsb-debts-val">—</div>
+      </div>
+      <div class="dsb-item" onclick="showPanel('families')" id="dsb-families">
+        <div class="dsb-icon">🏪</div>
+        <div class="dsb-label" data-i18n="repFamilies">🏪 مداخيل العائلات</div>
+      </div>
+      <div class="dsb-item" onclick="showPanel('products')" id="dsb-products">
+        <div class="dsb-icon">📦</div>
+        <div class="dsb-label" data-i18n="repProducts">📦 مداخيل السلع</div>
+      </div>
+      <div class="dsb-item" onclick="showPanel('scale')" id="dsb-scale">
+        <div class="dsb-icon">⚖️</div>
+        <div class="dsb-label" data-i18n="repScale">⚖️ مداخيل الميزان</div>
+        <div class="dsb-value scale-badge" id="dsb-scale-val">—</div>
+      </div>
+      <div style="margin-top:auto;padding-top:12px;border-top:1px solid var(--border);">
+        <a href="sale.html" class="dsb-item" style="text-decoration:none;">
+          <div class="dsb-icon">🔙</div>
+          <div class="dsb-label" data-i18n="repBackToSale">رجوع للبيع</div>
+        </a>
+      </div>
+    </div>
+
+    <!-- ── Main Content ── -->
+    <div class="dash-main">
+
+      <!-- ════ DASHBOARD PANEL ════ -->
+      <div class="section-panel active" id="panel-dashboard">
+        <!-- Period selector -->
+        <div class="period-tabs">
+          <button class="period-tab active" onclick="selectPeriod('week',this)" data-i18n="repPeriodWeek">📅 أسبوعي</button>
+          <button class="period-tab" onclick="selectPeriod('month',this)" data-i18n="repPeriodMonth">🗓️ شهري</button>
+          <button class="period-tab" onclick="selectPeriod('year',this)" data-i18n="repPeriodYear">📆 سنوي</button>
+        </div>
+
+        <!-- Bar chart: daily income -->
+        <div class="chart-wrap">
+          <div class="chart-title">
+            <span>📈 المداخيل اليومية</span>
+            <span id="chartPeriodLabel" style="font-size:0.78rem;color:var(--text-secondary);"></span>
+          </div>
+          <canvas id="barChart" height="140"></canvas>
+        </div>
+
+        <!-- Pie charts row -->
+        <div class="pie-row">
+          <div class="chart-wrap">
+            <div class="chart-title">🏷️ العائلات الأكثر مبيعاً</div>
+            <canvas id="familyPie" height="180"></canvas>
+            <div class="donut-legend" id="familyLegend"></div>
+          </div>
+          <div class="chart-wrap">
+            <div class="chart-title">📦 المنتجات حسب المستوى</div>
+            <canvas id="productPie" height="180"></canvas>
+            <div class="donut-legend" id="productLegend"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ════ DAILY INCOME PANEL ════ -->
+      <div class="section-panel" id="panel-daily">
+        <div class="sec-header">
+          <button class="sec-back-btn" onclick="showPanel('dashboard')">← رجوع</button>
+          <span class="sec-title">💰 المداخيل اليومية</span>
+          <button class="btn btn-danger btn-sm" onclick="closeDay()">🔒 إقفال اليوم</button>
+        </div>
+        <div class="date-search-row">
+          <label class="text-muted" style="font-size:0.85rem;">📅 التاريخ:</label>
+          <input type="date" id="dailyDate" oninput="loadDailyPanel()"/>
+          <button class="btn btn-secondary btn-sm" onclick="setTodayDate('dailyDate'); loadDailyPanel();" data-i18n="repToday">اليوم</button>
+          <button class="btn btn-primary btn-sm" onclick="printAllDailyInvoices()">🖨️ طباعة الكل</button>
+        </div>
+        <div class="total-banner">
+          <div><div class="total-banner-label">إجمالي مداخيل اليوم</div></div>
+          <div class="total-banner-val" id="dailyTotalVal">0.00</div>
+        </div>
+        <div id="dailyInvoicesWrap"></div>
+      </div>
+
+      <!-- ════ DAILY DEBTS PANEL ════ -->
+      <div class="section-panel" id="panel-debts">
+        <div class="sec-header">
+          <button class="sec-back-btn" onclick="showPanel('dashboard')">← رجوع</button>
+          <span class="sec-title">💳 الديون اليومية</span>
+          <a href="customers.html" class="btn btn-primary btn-sm">👥 إدارة الزبائن</a>
+        </div>
+        <div class="date-search-row">
+          <label class="text-muted" style="font-size:0.85rem;">📅 التاريخ:</label>
+          <input type="date" id="debtsDate" oninput="loadDebtsPanel()"/>
+          <button class="btn btn-secondary btn-sm" onclick="setTodayDate('debtsDate'); loadDebtsPanel();" data-i18n="repToday">اليوم</button>
+        </div>
+        <div class="total-banner" style="background:linear-gradient(135deg,#7f1d1d,#dc2626);">
+          <div><div class="total-banner-label">إجمالي ديون اليوم</div></div>
+          <div class="total-banner-val" id="debtsTotalVal">0.00</div>
+        </div>
+        <div id="debtsListWrap"></div>
+      </div>
+
+      <!-- ════ FAMILIES INCOME PANEL ════ -->
+      <div class="section-panel" id="panel-families">
+        <div class="sec-header">
+          <button class="sec-back-btn" onclick="showPanel('dashboard')">← رجوع</button>
+          <span class="sec-title">🏪 مداخيل العائلات نقداً</span>
+        </div>
+        <div class="date-search-row">
+          <label class="text-muted" style="font-size:0.85rem;">📅 التاريخ:</label>
+          <input type="date" id="familiesDate" oninput="loadFamiliesPanel()"/>
+          <button class="btn btn-secondary btn-sm" onclick="setTodayDate('familiesDate'); loadFamiliesPanel();" data-i18n="repToday">اليوم</button>
+        </div>
+        <div class="total-banner" style="background:linear-gradient(135deg,#064e3b,#059669);">
+          <div><div class="total-banner-label">إجمالي مداخيل العائلات</div></div>
+          <div class="total-banner-val" id="familiesTotalVal">0.00</div>
+        </div>
+        <div id="familiesListWrap"></div>
+      </div>
+
+      <!-- ════ PRODUCTS INCOME PANEL ════ -->
+      <div class="section-panel" id="panel-products">
+        <div class="sec-header">
+          <button class="sec-back-btn" onclick="showPanel('dashboard')">← رجوع</button>
+          <span class="sec-title">📦 مداخيل السلع</span>
+        </div>
+        <div class="date-search-row">
+          <label class="text-muted" style="font-size:0.85rem;">📅 التاريخ:</label>
+          <input type="date" id="productsDate" oninput="loadProductsPanel()"/>
+          <button class="btn btn-secondary btn-sm" onclick="setTodayDate('productsDate'); loadProductsPanel();" data-i18n="repToday">اليوم</button>
+        </div>
+        <div class="total-banner" style="background:linear-gradient(135deg,#1e3a5f,#2563eb);">
+          <div><div class="total-banner-label">إجمالي مداخيل السلع</div></div>
+          <div class="total-banner-val" id="productsTotalVal">0.00</div>
+        </div>
+        <div id="productsListWrap"></div>
+      </div>
+
+      <!-- ════ SCALE INCOME PANEL ════ -->
+      <div class="section-panel" id="panel-scale">
+        <div class="sec-header">
+          <button class="sec-back-btn" onclick="showPanel('dashboard')">← رجوع</button>
+          <span class="sec-title">⚖️ مداخيل الميزان الإلكتروني</span>
+          <span class="scale-badge">ميزان متصل</span>
+        </div>
+        <div class="date-search-row">
+          <label class="text-muted" style="font-size:0.85rem;">📅 التاريخ:</label>
+          <input type="date" id="scaleDate" oninput="loadScalePanel()"/>
+          <button class="btn btn-secondary btn-sm" onclick="setTodayDate('scaleDate'); loadScalePanel();" data-i18n="repToday">اليوم</button>
+          <button class="btn btn-primary btn-sm" onclick="addScaleEntry()">➕ إضافة يدوية</button>
+        </div>
+        <div class="total-banner" style="background:linear-gradient(135deg,#1a1a4e,#7c3aed);">
+          <div><div class="total-banner-label">إجمالي مداخيل الميزان</div></div>
+          <div class="total-banner-val" id="scaleTotalVal">0.00</div>
+        </div>
+        <div id="scaleListWrap"></div>
+      </div>
+
+    </div><!-- end dash-main -->
+  </div><!-- end dash-layout -->
+</div>
+
+  <div class="sidebar-overlay" id="sidebarOverlay"></div>
+  <div class="sidebar" id="sidebar">
+    <div class="sidebar-header">
+      <div class="sidebar-header-top">
+        <div class="sidebar-brand-text">POS DZ</div>
+        <button class="sidebar-close-btn" id="sidebarCloseBtn"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <div class="sidebar-user-box">
+        <div class="sidebar-user-avatar"><span id="sidebarUserInitial">A</span></div>
+        <div class="sidebar-user-info">
+          <span class="sidebar-user-name" id="sidebarUserName">المستخدم</span>
+          <span class="sidebar-user-role" id="sidebarUserRole">مدير</span>
+        </div>
+      </div>
+    </div>
+    <nav class="sidebar-nav">
+      <a class="nav-item" href="sale.html"><i class="fa-solid fa-cash-register nav-icon"></i><span>واجهة البيع</span></a>
+      <a class="nav-item" href="inventory.html" data-role="admin,manager"><i class="fa-solid fa-boxes-stacked nav-icon"></i><span>المخزون</span></a>
+      <a class="nav-item" href="customers.html"><i class="fa-solid fa-users nav-icon"></i><span>الزبائن</span></a>
+      <a class="nav-item" href="reports.html" class="nav-item active" data-role="admin,manager"><i class="fa-solid fa-chart-line nav-icon"></i><span>إدارة الأعمال</span></a>
+      <a class="nav-item" href="suppliers.html" data-role="admin,manager"><i class="fa-solid fa-truck nav-icon"></i><span>الموردون</span></a>
+      <a class="nav-item" href="users.html" data-role="admin"><i class="fa-solid fa-user-shield nav-icon"></i><span>المستخدمون</span></a>
+      <a class="nav-item" href="settings.html" data-role="admin,manager"><i class="fa-solid fa-gear nav-icon"></i><span>الإعدادات</span></a>
+      <div class="nav-divider"></div>
+      <div class="nav-item danger" onclick="doLogout()"><i class="fa-solid fa-right-from-bracket nav-icon"></i><span>خروج</span></div>
+    </nav>
+    <div class="sidebar-footer"><span id="sidebarVersion">v6.0.0</span><span>POS DZ 2026</span></div>
+  </div>
+
+  <div class="tab-content" id="content-accounting" style="display:none;">
+    <div class="page-section">
+      <div class="section-header">
+        <h2 class="section-title"><i class="fa-solid fa-coins"></i> النظام المحاسبي</h2>
+        <input type="date" id="accDate" onchange="loadAccounting()"
+          style="background:var(--bg-input);border:1px solid var(--border);border-radius:8px;color:var(--text-primary);padding:7px 12px;font-family:var(--font-main);font-size:0.9rem;"/>
+      </div>
+      <div class="stats-grid" id="accStats">
+        <div class="stat-card"><div class="stat-icon" style="background:rgba(16,185,129,0.15);"><i class="fa-solid fa-money-bill-trend-up" style="color:#10b981;"></i></div><div class="stat-info"><span class="stat-label">مداخيل البيع</span><span class="stat-value" id="accRevenue">0.00</span></div></div>
+        <div class="stat-card"><div class="stat-icon" style="background:rgba(239,68,68,0.15);"><i class="fa-solid fa-cart-flatbed" style="color:#ef4444;"></i></div><div class="stat-info"><span class="stat-label">تكلفة الشراء</span><span class="stat-value" id="accCost">0.00</span></div></div>
+        <div class="stat-card"><div class="stat-icon" style="background:rgba(245,158,11,0.15);"><i class="fa-solid fa-receipt" style="color:#f59e0b;"></i></div><div class="stat-info"><span class="stat-label">المصاريف</span><span class="stat-value" id="accExpenses">0.00</span></div></div>
+        <div class="stat-card"><div class="stat-icon" style="background:rgba(124,58,237,0.15);"><i class="fa-solid fa-sack-dollar" style="color:#7C3AED;"></i></div><div class="stat-info"><span class="stat-label">صافي الربح</span><span class="stat-value" id="accProfit">0.00</span></div></div>
+        <div class="stat-card"><div class="stat-icon" style="background:rgba(239,68,68,0.15);"><i class="fa-solid fa-credit-card" style="color:#ef4444;"></i></div><div class="stat-info"><span class="stat-label">الديون المعلقة</span><span class="stat-value" id="accDebts">0.00</span></div></div>
+        <div class="stat-card"><div class="stat-icon" style="background:rgba(59,130,246,0.15);"><i class="fa-solid fa-bag-shopping" style="color:#3b82f6;"></i></div><div class="stat-info"><span class="stat-label">عدد المبيعات</span><span class="stat-value" id="accSalesCount">0</span></div></div>
+      </div>
+      <div class="section-header" style="margin-top:20px;">
+        <h3 class="section-title" style="font-size:1rem;"><i class="fa-solid fa-plus-circle"></i> إضافة مصروف</h3>
+      </div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px;">
+        <input type="text" id="expCategory" placeholder="الفئة (إيجار، كهرباء...)" style="flex:1;min-width:130px;background:var(--bg-input);border:1px solid var(--border);border-radius:8px;color:var(--text-primary);padding:9px 12px;font-family:var(--font-main);font-size:0.9rem;outline:none;"/>
+        <input type="number" id="expAmount" placeholder="المبلغ" min="0" style="width:120px;background:var(--bg-input);border:1px solid var(--border);border-radius:8px;color:var(--text-primary);padding:9px 12px;font-family:var(--font-main);font-size:0.9rem;outline:none;text-align:center;"/>
+        <input type="text" id="expNote" placeholder="ملاحظة" style="flex:2;min-width:150px;background:var(--bg-input);border:1px solid var(--border);border-radius:8px;color:var(--text-primary);padding:9px 12px;font-family:var(--font-main);font-size:0.9rem;outline:none;"/>
+        <button class="btn btn-primary" onclick="addExpenseNow()"><i class="fa-solid fa-plus"></i> إضافة</button>
+        <button class="btn btn-secondary" onclick="sendDailyReportEmail()"><i class="fa-solid fa-envelope"></i> إرسال تقرير</button>
+      </div>
+      <div id="expensesList"></div>
+    </div>
+  </div>
+<div id="toast-container"></div>
+<script src="app.js"></script>
+<script src="sync.js"></script>
+<script>
+'use strict';
+let currency = 'DA';
+let allSales = [], allItems = [], allCustomers = [], allDebtsDB = [], allProducts = [], allFamilies = [];
+let currentPeriod = 'week';
+let currentPanel = 'dashboard';
+
+// ═══════════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════════
+async function init() {
+  requireAuth();
+  requireRole(['admin','manager']);
+  await initApp();
+  currency = await getSetting('currency') || 'DA';
+  await refreshData();
+  setTodayDate('dailyDate');
+  setTodayDate('debtsDate');
+  setTodayDate('familiesDate');
+  setTodayDate('productsDate');
+  setTodayDate('scaleDate');
+  await updateSidebarValues();
+  selectPeriod('week', document.querySelector('.period-tab'));
+}
+
+async function refreshData() {
+  allSales     = await dbGetAll('sales');
+  allItems     = await dbGetAll('saleItems');
+  allCustomers = await dbGetAll('customers');
+  allDebtsDB   = await dbGetAll('debts');
+  allProducts  = await dbGetAll('products');
+  allFamilies  = await dbGetAll('families');
+}
+
+function setTodayDate(id) {
+  const el = document.getElementById(id);
+  if (el) el.value = todayStr();
+}
+
+// ═══════════════════════════════════════════════
+// PANEL NAVIGATION
+// ═══════════════════════════════════════════════
+function showPanel(name) {
+  currentPanel = name;
+  document.querySelectorAll('.section-panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.dsb-item').forEach(i => i.classList.remove('active'));
+  document.getElementById('panel-' + name)?.classList.add('active');
+  document.getElementById('dsb-' + name)?.classList.add('active');
+
+  if (name === 'daily')    loadDailyPanel();
+  if (name === 'debts')    loadDebtsPanel();
+  if (name === 'families') loadFamiliesPanel();
+  if (name === 'products') loadProductsPanel();
+  if (name === 'scale')    loadScalePanel();
+}
+
+// ═══════════════════════════════════════════════
+// SIDEBAR QUICK VALUES
+// ═══════════════════════════════════════════════
+async function updateSidebarValues() {
+  const today = todayStr();
+  const todaySales = allSales.filter(s => !s.isCancelled && !s.isDebt && s.date.startsWith(today));
+  const todayTotal = todaySales.reduce((s,x) => s+x.total, 0);
+  const el = document.getElementById('dsb-daily-val');
+  if (el) el.textContent = todayTotal.toFixed(0) + ' ' + currency;
+
+  const todayDebts = allDebtsDB.filter(d => !d.isPaid && d.date.startsWith(today));
+  const debtTotal  = todayDebts.reduce((s,d) => s+d.amount, 0);
+  const el2 = document.getElementById('dsb-debts-val');
+  if (el2) el2.textContent = debtTotal.toFixed(0) + ' ' + currency;
+
+  // Scale
+  const scaleItems = allItems.filter(i => i.isScale && i.date && i.date.startsWith(today));
+  const scaleTotal = scaleItems.reduce((s,i) => s+i.total, 0);
+  const el3 = document.getElementById('dsb-scale-val');
+  if (el3) el3.textContent = scaleTotal > 0 ? scaleTotal.toFixed(0) : '—';
+}
+
+// ═══════════════════════════════════════════════
+// CHART: PERIOD SELECTOR
+// ═══════════════════════════════════════════════
+function selectPeriod(period, btn) {
+  currentPeriod = period;
+  document.querySelectorAll('.period-tab').forEach(b => b.classList.remove('active'));
+  if (btn) btn.classList.add('active');
+  drawBarChart();
+  drawPieCharts();
+}
+
+// ── Bar Chart (daily income grouped) ──
+function drawBarChart() {
+  const canvas = document.getElementById('barChart');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+
+  // Generate date range
+  const today = new Date();
+  const dates = [];
+  let days = currentPeriod === 'week' ? 7 : currentPeriod === 'month' ? 30 : 12;
+  const isYear = currentPeriod === 'year';
+
+  for (let i = days - 1; i >= 0; i--) {
+    if (isYear) {
+      const d = new Date(today.getFullYear(), today.getMonth() - i, 1);
+      dates.push({ key: d.toISOString().slice(0,7), label: d.toLocaleDateString('ar-DZ',{month:'short'}) });
+    } else {
+      const d = new Date(today); d.setDate(d.getDate() - i);
+      dates.push({ key: d.toISOString().slice(0,10), label: d.getDate() + '/' + (d.getMonth()+1) });
+    }
+  }
+
+  const values = dates.map(d => {
+    const s = allSales.filter(x => !x.isCancelled && !x.isDebt && x.date.startsWith(d.key));
+    return s.reduce((acc,x) => acc + x.total, 0);
+  });
+  const maxVal = Math.max(...values, 1);
+
+  const label = currentPeriod === 'week' ? 'آخر 7 أيام' : currentPeriod === 'month' ? 'آخر 30 يوم' : 'آخر 12 شهر';
+  const periodEl = document.getElementById('chartPeriodLabel');
+  if (periodEl) periodEl.textContent = label;
+
+  // Size canvas
+  const W = canvas.parentElement.clientWidth - 32;
+  const H = 140;
+  canvas.width  = W;
+  canvas.height = H;
+
+  ctx.clearRect(0, 0, W, H);
+
+  const barW = Math.max(8, (W / dates.length) - 6);
+  const padT = 16, padB = 24;
+  const chartH = H - padT - padB;
+
+  values.forEach((val, i) => {
+    const ratio = val / maxVal;
+    const bh    = Math.max(2, ratio * chartH);
+    const x     = i * (W / dates.length) + (W / dates.length - barW) / 2;
+    const y     = padT + chartH - bh;
+
+    // Color based on income level
+    const r = Math.round(239 - ratio * 180);
+    const g = Math.round(68  + ratio * 117);
+    const b = Math.round(68  + ratio * 68);
+    ctx.fillStyle = `rgba(${r},${g},${b},0.85)`;
+
+    // Rounded top bar
+    ctx.beginPath();
+    ctx.roundRect(x, y, barW, bh, [4, 4, 0, 0]);
+    ctx.fill();
+
+    // Label
+    ctx.fillStyle = 'rgba(160,160,192,0.8)';
+    ctx.font = `${Math.max(8, barW > 20 ? 9 : 7)}px Cairo`;
+    ctx.textAlign = 'center';
+    ctx.fillText(dates[i].label, x + barW / 2, H - 6);
+
+    // Value on top
+    if (val > 0 && barW > 18) {
+      ctx.fillStyle = '#fff';
+      ctx.font = '8px Cairo';
+      ctx.fillText(val >= 1000 ? (val/1000).toFixed(1)+'k' : val.toFixed(0), x + barW / 2, y - 3);
+    }
+  });
+}
+
+// ── Pie Charts ──
+const PIE_COLORS = ['#7C3AED','#2563EB','#059669','#EA580C','#DC2626','#0891B2','#D97706','#9333EA','#0D9488','#BE185D'];
+
+function drawPie(canvasId, legendId, data) {
+  const canvas = document.getElementById(canvasId);
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  const size = Math.min(canvas.parentElement.clientWidth - 32, 180);
+  canvas.width = canvas.height = size;
+
+  const total = data.reduce((s, d) => s + d.value, 0);
+  if (!total) {
+    ctx.fillStyle = 'var(--text-secondary)';
+    ctx.font = '13px Cairo';
+    ctx.textAlign = 'center';
+    ctx.fillText('لا بيانات', size/2, size/2);
+    return;
+  }
+
+  let startAngle = -Math.PI / 2;
+  data.forEach((d, i) => {
+    const slice = (d.value / total) * 2 * Math.PI;
+    ctx.beginPath();
+    ctx.moveTo(size/2, size/2);
+    ctx.arc(size/2, size/2, size/2 - 4, startAngle, startAngle + slice);
+    ctx.closePath();
+    ctx.fillStyle = PIE_COLORS[i % PIE_COLORS.length];
+    ctx.fill();
+    startAngle += slice;
+  });
+
+  // Donut hole
+  ctx.beginPath();
+  ctx.arc(size/2, size/2, size/4, 0, 2*Math.PI);
+  ctx.fillStyle = 'var(--bg-card)';
+  ctx.fill();
+
+  // Legend
+  const legendEl = document.getElementById(legendId);
+  if (legendEl) {
+    legendEl.innerHTML = data.slice(0,6).map((d,i) =>
+      `<div class="legend-item">
+        <div class="legend-dot" style="background:${PIE_COLORS[i%PIE_COLORS.length]}"></div>
+        <span style="color:var(--text-secondary);">${d.label}</span>
+        <span style="color:var(--primary-light);font-weight:700;margin-right:auto;">${d.value.toFixed(0)}</span>
+      </div>`).join('');
+  }
+}
+
+function drawPieCharts() {
+  // Families pie
+  const famMap = {};
+  allItems.forEach(item => {
+    const sale = allSales.find(s => s.id === item.saleId && !s.isCancelled && !s.isDebt);
+    if (!sale) return;
+    const prod = allProducts.find(p => p.name === item.productName);
+    const fam  = prod ? (allFamilies.find(f => f.id === prod.familyId)?.name || 'أخرى') : 'أخرى';
+    famMap[fam] = (famMap[fam] || 0) + item.total;
+  });
+  const famData = Object.entries(famMap).sort((a,b)=>b[1]-a[1]).slice(0,8).map(([l,v])=>({label:l,value:v}));
+  drawPie('familyPie', 'familyLegend', famData);
+
+  // Products pie — 4 levels
+  const prodSales = {};
+  allItems.forEach(item => {
+    const sale = allSales.find(s => s.id === item.saleId && !s.isCancelled);
+    if (sale) prodSales[item.productName] = (prodSales[item.productName]||0) + item.quantity;
+  });
+  const sorted = Object.values(prodSales).sort((a,b)=>b-a);
+  const max = sorted[0]||1;
+  const levels = [{label:'الأكثر مبيعاً',value:0},{label:'متوسط',value:0},{label:'ضعيف',value:0},{label:'الأقل',value:0}];
+  Object.values(prodSales).forEach(v => {
+    const r = v/max;
+    if (r >= 0.75) levels[0].value += v;
+    else if (r >= 0.4) levels[1].value += v;
+    else if (r >= 0.15) levels[2].value += v;
+    else levels[3].value += v;
+  });
+  drawPie('productPie', 'productLegend', levels.filter(l=>l.value>0));
+}
+
+// ═══════════════════════════════════════════════
+// DAILY INCOME PANEL
+// ═══════════════════════════════════════════════
+async function loadDailyPanel() {
+  await refreshData();
+  const date = document.getElementById('dailyDate')?.value || todayStr();
+  const isToday = date === todayStr();
+  const sales = allSales.filter(s => !s.isCancelled && s.date.startsWith(date)).sort((a,b)=>a.invoiceNumber?.localeCompare(b.invoiceNumber));
+  const total = sales.filter(s=>!s.isDebt).reduce((s,x)=>s+x.total,0);
+  document.getElementById('dailyTotalVal').textContent = total.toFixed(2) + ' ' + currency;
+
+  if (!sales.length) {
+    document.getElementById('dailyInvoicesWrap').innerHTML = '<div class="empty-state"><div class="empty-icon">💰</div><p>لا توجد مبيعات في هذا اليوم</p></div>';
+    return;
+  }
+
+  const now = Date.now();
+  const rows = await Promise.all(sales.map(async s => {
+    const customer = allCustomers.find(c => c.id === s.customerId);
+    const saleTime = new Date(s.date).getTime();
+    const canReturn = isToday && (now - saleTime) < 86400000; // 24h
+
+    let badge;
+    if (s.isCancelled)        badge = `<span class="badge badge-danger">❌ ملغاة</span>`;
+    else if (s.debtSettlement) badge = `<span class="badge badge-success">✅ تسديد</span>`;
+    else if (s.isDebt && s.debtPaidDate) badge = `<span class="badge badge-warning">📋 دين مسدد</span>`;
+    else if (s.isDebt)         badge = `<span class="badge badge-danger">📋 دين</span>`;
+    else                       badge = `<span class="badge badge-success">✅ مسدد</span>`;
+
+    return `<tr>
+      <td><b>${s.invoiceNumber||'—'}</b></td>
+      <td>${formatTime(s.date)}</td>
+      <td>${customer ? customer.name : '—'}</td>
+      <td><b>${s.total.toFixed(2)} ${currency}</b></td>
+      <td>${badge}</td>
+      <td class="actions">
+        <button class="btn btn-sm btn-secondary" onclick="reprrintSaleR(${s.id})" title="طباعة">🖨️</button>
+        ${canReturn && !s.isCancelled && !s.isDebt ? `<button class="return-btn" onclick="returnSale(${s.id})" title="إرجاع (24س)">↩️ إرجاع</button>` : ''}
+      </td>
+    </tr>`;
+  }));
+
+  document.getElementById('dailyInvoicesWrap').innerHTML = `
+    <div class="inv-table-wrap">
+      <div class="inv-table-header">
+        <span class="text-muted" style="font-size:0.85rem;">${sales.length} فاتورة</span>
+        <span style="color:var(--success);font-weight:700;">نقداً: ${total.toFixed(2)} ${currency}</span>
+      </div>
+      <table class="data-table">
+        <thead><tr><th>الفاتورة</th><th>الوقت</th><th>الزبون</th><th>المبلغ</th><th>الحالة</th><th>إجراءات</th></tr></thead>
+        <tbody>${rows.join('')}</tbody>
+      </table>
+    </div>`;
+}
+
+function formatTime(dateStr) {
+  if (!dateStr) return '—';
+  const d = new Date(dateStr);
+  return d.toLocaleTimeString('ar-DZ', { hour:'2-digit', minute:'2-digit' });
+}
+
+async function printAllDailyInvoices() {
+  const date = document.getElementById('dailyDate')?.value || todayStr();
+  const sales = allSales.filter(s => !s.isCancelled && !s.isDebt && s.date.startsWith(date));
+  if (!sales.length) { toast('لا توجد فواتير لهذا اليوم', 'info'); return; }
+  for (const s of sales) {
+    const items = allItems.filter(i => i.saleId === s.id);
+    const c = allCustomers.find(c => c.id === s.customerId);
+    s.customerName = c ? c.name : '';
+    await printInvoice(s, items);
+    await new Promise(r => setTimeout(r, 400));
+  }
+}
+
+async function returnSale(saleId) {
+  if (!await customConfirmAsync('إرجاع هذه الفاتورة وسحب المبلغ من المداخيل؟')) return;
+  const sale = await dbGet('sales', saleId);
+  if (!sale) return;
+  const saleTime = new Date(sale.date).getTime();
+  if (Date.now() - saleTime >= 86400000) { toast('⚠️ انتهت مدة الإرجاع (24 ساعة)', 'warning'); return; }
+  sale.isCancelled = 1;
+  await dbPut('sales', sale);
+  // Restore stock
+  const items = allItems.filter(i => i.saleId === saleId);
+  for (const item of items) {
+    const prod = await dbGet('products', item.productId);
+    if (prod) { prod.quantity += item.quantity; await dbPut('products', prod); }
+  }
+  await dbAdd('logs', { action: 'return', details: `إرجاع فاتورة ${sale.invoiceNumber}`, date: new Date().toISOString() });
+  toast('✅ تم الإرجاع وإعادة المخزون', 'success');
+  await refreshData();
+  loadDailyPanel();
+}
+
+async function reprrintSaleR(id) {
+  const sale = await dbGet('sales', id);
+  const items = allItems.filter(i => i.saleId === id);
+  const c = allCustomers.find(c => c.id === sale.customerId);
+  sale.customerName = c ? c.name : '';
+  await printInvoice(sale, items);
+}
+
+// ═══════════════════════════════════════════════
+// DAILY DEBTS PANEL
+// ═══════════════════════════════════════════════
+async function loadDebtsPanel() {
+  await refreshData();
+  const date   = document.getElementById('debtsDate')?.value || todayStr();
+  const debts  = allDebtsDB.filter(d => d.date.startsWith(date));
+  const total  = debts.reduce((s, d) => s + d.amount, 0);
+  document.getElementById('debtsTotalVal').textContent = total.toFixed(2) + ' ' + currency;
+
+  if (!debts.length) {
+    document.getElementById('debtsListWrap').innerHTML = '<div class="empty-state"><div class="empty-icon">💳</div><p>لا توجد ديون في هذا اليوم</p></div>';
+    return;
+  }
+
+  const rows = await Promise.all(debts.map(async d => {
+    const c    = allCustomers.find(x => x.id === d.customerId);
+    const sale = await dbGet('sales', d.saleId);
+    const badge = d.isPaid
+      ? `<span class="badge badge-success">✅ مسدد — ${formatDate(d.paidDate||d.date)}</span>`
+      : `<span class="badge badge-danger">📋 قائم</span>`;
+    return `<tr>
+      <td><b>${c ? c.name : '—'}</b></td>
+      <td>${c ? c.phone : '—'}</td>
+      <td>${sale ? sale.invoiceNumber : '—'}</td>
+      <td style="color:var(--danger);font-weight:700;">${(d.originalAmount||d.amount).toFixed(2)} ${currency}</td>
+      <td style="color:${d.amount < (d.originalAmount||d.amount) ? 'var(--warning)' : 'var(--danger)'};font-weight:700;">${d.amount.toFixed(2)} ${currency}${d.amount < (d.originalAmount||d.amount) ? ' <span style="font-size:0.7rem;color:var(--success)">جزئي</span>' : ''}</td>
+      <td>${badge}</td>
+      <td class="actions">
+        <a href="customers.html" class="btn btn-sm btn-primary" title="إدارة الزبون">👤</a>
+        ${sale ? `<button class="btn btn-sm btn-secondary" onclick="reprrintSaleR(${sale.id})" title="طباعة">🖨️</button>` : ''}
+      </td>
+    </tr>`;
+  }));
+
+  document.getElementById('debtsListWrap').innerHTML = `
+    <div class="inv-table-wrap">
+      <div class="inv-table-header">
+        <span class="text-muted" style="font-size:0.85rem;">${debts.length} دين</span>
+        <span style="color:var(--danger);font-weight:700;">المتبقي: ${total.toFixed(2)} ${currency}</span>
+      </div>
+      <table class="data-table">
+        <thead><tr><th>الزبون</th><th>الهاتف</th><th>فاتورة</th><th>الأصلي</th><th>المتبقي</th><th>الحالة</th><th>إجراءات</th></tr></thead>
+        <tbody>${rows.join('')}</tbody>
+      </table>
+    </div>`;
+}
+
+// ═══════════════════════════════════════════════
+// FAMILIES INCOME PANEL
+// ═══════════════════════════════════════════════
+async function loadFamiliesPanel() {
+  await refreshData();
+  const date = document.getElementById('familiesDate')?.value || todayStr();
+  const daySales = allSales.filter(s => !s.isCancelled && !s.isDebt && s.date.startsWith(date));
+  const daySaleIds = new Set(daySales.map(s => s.id));
+  const dayItems = allItems.filter(i => daySaleIds.has(i.saleId));
+
+  const famMap = {};
+  dayItems.forEach(item => {
+    const prod = allProducts.find(p => p.name === item.productName || p.id === item.productId);
+    const fam  = prod ? (allFamilies.find(f => f.id === prod.familyId)?.name || 'أخرى') : 'أخرى';
+    if (!famMap[fam]) famMap[fam] = { total: 0, qty: 0 };
+    famMap[fam].total += item.total;
+    famMap[fam].qty   += item.quantity;
+  });
+
+  const total = Object.values(famMap).reduce((s, f) => s + f.total, 0);
+  document.getElementById('familiesTotalVal').textContent = total.toFixed(2) + ' ' + currency;
+
+  const entries = Object.entries(famMap).sort((a,b) => b[1].total - a[1].total);
+  if (!entries.length) {
+    document.getElementById('familiesListWrap').innerHTML = '<div class="empty-state"><div class="empty-icon">🏪</div><p>لا توجد مبيعات في هذا اليوم</p></div>';
+    return;
+  }
+  const maxTotal = entries[0][1].total;
+  document.getElementById('familiesListWrap').innerHTML = `
+    <div class="card" style="padding:12px;">
+      ${entries.map(([name, d], i) => `
+        <div style="margin-bottom:12px;">
+          <div style="display:flex;justify-content:space-between;margin-bottom:4px;">
+            <span style="font-weight:700;color:var(--text-primary);">${name}</span>
+            <span style="color:var(--primary-light);font-weight:900;">${d.total.toFixed(2)} ${currency}</span>
+          </div>
+          <div style="height:8px;background:var(--bg-dark);border-radius:4px;overflow:hidden;">
+            <div style="height:100%;width:${(d.total/maxTotal*100).toFixed(0)}%;background:${PIE_COLORS[i%PIE_COLORS.length]};border-radius:4px;transition:width 0.5s;"></div>
+          </div>
+          <div style="font-size:0.72rem;color:var(--text-secondary);margin-top:2px;">${d.qty} وحدة</div>
+        </div>`).join('')}
+    </div>`;
+}
+
+// ═══════════════════════════════════════════════
+// PRODUCTS INCOME PANEL
+// ═══════════════════════════════════════════════
+async function loadProductsPanel() {
+  await refreshData();
+  const date = document.getElementById('productsDate')?.value || todayStr();
+  const daySales = allSales.filter(s => !s.isCancelled && !s.isDebt && s.date.startsWith(date));
+  const daySaleIds = new Set(daySales.map(s => s.id));
+  const dayItems = allItems.filter(i => daySaleIds.has(i.saleId));
+
+  const prodMap = {};
+  dayItems.forEach(item => {
+    if (!prodMap[item.productName]) prodMap[item.productName] = { total: 0, qty: 0 };
+    prodMap[item.productName].total += item.total;
+    prodMap[item.productName].qty   += item.quantity;
+  });
+
+  const total = Object.values(prodMap).reduce((s, p) => s + p.total, 0);
+  document.getElementById('productsTotalVal').textContent = total.toFixed(2) + ' ' + currency;
+
+  const entries = Object.entries(prodMap).sort((a,b) => b[1].total - a[1].total);
+  if (!entries.length) {
+    document.getElementById('productsListWrap').innerHTML = '<div class="empty-state"><div class="empty-icon">📦</div><p>لا توجد مبيعات في هذا اليوم</p></div>';
+    return;
+  }
+  document.getElementById('productsListWrap').innerHTML = `
+    <div class="inv-table-wrap">
+      <table class="data-table">
+        <thead><tr><th>#</th><th>المنتج</th><th>الكمية</th><th>المداخيل</th></tr></thead>
+        <tbody>
+          ${entries.map(([name, d], i) =>
+            `<tr>
+              <td style="color:var(--text-secondary);font-size:0.82rem;">${i+1}</td>
+              <td><b>${name}</b></td>
+              <td>${d.qty}</td>
+              <td style="color:var(--primary-light);font-weight:700;">${d.total.toFixed(2)} ${currency}</td>
+            </tr>`).join('')}
+        </tbody>
+        <tfoot>
+          <tr style="background:var(--bg-dark);">
+            <td colspan="2" style="font-weight:700;">الإجمالي</td>
+            <td>${entries.reduce((s,e)=>s+e[1].qty,0)}</td>
+            <td style="color:var(--success);font-weight:900;">${total.toFixed(2)} ${currency}</td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>`;
+}
+
+// ═══════════════════════════════════════════════
+// SCALE INCOME PANEL
+// ═══════════════════════════════════════════════
+async function loadScalePanel() {
+  await refreshData();
+  const date = document.getElementById('scaleDate')?.value || todayStr();
+  // Scale items: saleItems where isScale === true OR from scale-type sales
+  const scaleEntries = allItems.filter(i => {
+    if (i.isScale) return i.date ? i.date.startsWith(date) : false;
+    const s = allSales.find(x => x.id === i.saleId && !x.isCancelled && x.date.startsWith(date) && x.isScale);
+    return !!s;
+  });
+
+  const total = scaleEntries.reduce((s, i) => s + i.total, 0);
+  document.getElementById('scaleTotalVal').textContent = total.toFixed(2) + ' ' + currency;
+
+  if (!scaleEntries.length) {
+    document.getElementById('scaleListWrap').innerHTML = `
+      <div class="empty-state"><div class="empty-icon">⚖️</div><p>لا توجد عمليات ميزان في هذا اليوم</p>
+      <div style="margin-top:10px;font-size:0.82rem;color:var(--text-secondary);">يتم تغذية هذه الخانة تلقائياً من الميزان الإلكتروني عند ربطه في الإعدادات</div></div>`;
+    return;
+  }
+
+  document.getElementById('scaleListWrap').innerHTML = `
+    <div class="inv-table-wrap">
+      <table class="data-table">
+        <thead><tr><th>المنتج</th><th>الوزن/الكمية</th><th>سعر الكيلو</th><th>المبلغ</th></tr></thead>
+        <tbody>
+          ${scaleEntries.map(i =>
+            `<tr>
+              <td><b>${i.productName||'—'}</b></td>
+              <td>${i.quantity} ${i.unit||'كغ'}</td>
+              <td>${i.unitPrice?.toFixed(2)||'—'} ${currency}</td>
+              <td style="color:var(--primary-light);font-weight:700;">${i.total.toFixed(2)} ${currency}</td>
+            </tr>`).join('')}
+        </tbody>
+      </table>
+    </div>`;
+}
+
+async function addScaleEntry() {
+  // Use custom modal instead of prompt
+  const productName = await _inputDialog('اسم المنتج (ميزان):');
+  if (!productName) return;
+  const weightStr = await _inputDialog('الوزن (كغ):');
+  const priceStr  = await _inputDialog('السعر / كغ:');
+  const weight = parseFloat(weightStr || '0');
+  const price  = parseFloat(priceStr  || '0');
+  if (!weight || !price) { toast('⚠️ بيانات غير صحيحة', 'warning'); return; }
+  const total = weight * price;
+  const user  = getSession();
+  const invNo = await getNextInvoiceNumber();
+  const now   = new Date().toISOString();
+  const saleId = await dbAdd('sales', {
+    invoiceNumber: invNo, userId: user.id, customerId: 0,
+    total, discount: 0, paid: total,
+    isDebt: 0, isCancelled: 0, isScale: true, date: now
+  });
+  await dbAdd('saleItems', { saleId, productName, productId: 0, quantity: weight, unitPrice: price, total, isScale: true, unit: 'كغ', date: now });
+  toast(`✅ تم إضافة: ${productName} — ${total.toFixed(2)} ${currency}`, 'success');
+  await refreshData();
+  loadScalePanel();
+  updateSidebarValues();
+}
+
+// ═══════════════════════════════════════════════
+// MISC
+// ═══════════════════════════════════════════════
+async function closeDay() {
+  if (!await customConfirmAsync('إقفال اليوم وإعادة ترقيم الفواتير من #001؟')) return;
+  await resetDailyCounter();
+  toast('✅ تم إقفال اليوم', 'success', 3000);
+  await refreshData();
+  loadDailyPanel();
+}
+
+function doLogout() { customConfirm('هل تريد تسجيل الخروج؟', () => { clearSession(); window.location.href = 'index.html'; }); }
+
+init();
+</script>
+</body>
+</html>
