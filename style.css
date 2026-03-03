@@ -150,6 +150,10 @@ body {
 [lang="fr"] body,[lang="en"] body { direction:ltr; text-align:left; }
 [lang="fr"] .sidebar,[lang="en"] .sidebar { right:auto; left:-290px; }
 [lang="fr"] .sidebar.open,[lang="en"] .sidebar.open { left:0; right:auto; }
+/* Arabic RTL: sidebar hidden right by default */
+[lang="ar"] .sidebar { right:-290px !important; left:auto !important; }
+[lang="ar"] .sidebar.open { right:0 !important; }
+html:not([lang]) .sidebar { right:-290px; left:auto; }
 
 /* Typography */
 h1,h2,h3,h4,h5,h6 {
@@ -929,3 +933,12 @@ input,select,textarea,button {
 .truncate       { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .pointer        { cursor:pointer; }
 .select-none    { user-select:none; }
+
+/* VKB Windows keyboard */
+.vkb-row{display:flex;gap:3px;justify-content:center;margin-bottom:3px;}
+.vkb-key{background:linear-gradient(180deg,#2d2d3f,#1e1e2e);border:1px solid #444466;border-bottom:3px solid #222233;color:var(--text-primary);border-radius:5px;padding:7px 0;min-width:36px;font-size:0.8rem;font-weight:600;cursor:pointer;text-align:center;transition:transform .06s,background .1s;user-select:none;flex:1;max-width:46px;}
+.vkb-key:hover{background:linear-gradient(180deg,#3d3d5f,#2e2e4e);border-color:var(--primary);}
+.vkb-key:active{transform:translateY(2px);border-bottom-width:1px;background:var(--primary);color:#fff;}
+.vkb-key.delete{background:linear-gradient(180deg,#3d2020,#2d1010);border-color:#664444;min-width:52px;max-width:62px;color:#f87171;}
+.vkb-key.space{min-width:150px;max-width:210px;flex:4;}
+.vkb-key.enter-key{min-width:68px;max-width:88px;background:linear-gradient(180deg,#3d2070,#2d1060)!important;border-color:var(--primary)!important;color:#fff!important;}
