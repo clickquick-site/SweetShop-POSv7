@@ -545,6 +545,24 @@ const APP_I18N = {
     confirmCloseDay:'هل تريد إقفال اليوم؟',
     // حوارات
     dialogYes:'نعم', dialogNo:'لا', dialogOk:'حسناً',
+    currencyLabel:'دج',
+    // المخزون إضافي
+    invAlerts:'تنبيهات المخزون', invTabAll:'كل المنتجات', invTabFamilies:'العائلات',
+    invTabImport:'استيراد / تصدير', invFormTitleAdd:'إضافة منتج جديد',
+    invColUnit:'الوحدة', invColExpiry:'الصلاحية', invColAlert:'تنبيه',
+    invLabelName:'اسم المنتج', invLabelSize:'الحجم / المقاس', invLabelExpiry:'تاريخ نهاية الصلاحية',
+    invBtnClear:'تفريغ الحقول', invImportTitle:'استيراد المنتجات', invExportTitle:'تصدير المنتجات',
+    invBtnExport:'تصدير كل المنتجات (CSV)', invBtnTemplate:'تحميل نموذج CSV',
+    invImportConfirm:'تأكيد الاستيراد', invImportAccept:'قبول التحديث', invImportSkip:'تجاهل المنتجات المشابهة',
+    // الموردون
+    supBtnAdd:'إضافة مورد جديد', supSearch:'ابحث عن مورد...',
+    supAddress:'العنوان', supActivity:'نوع النشاط',
+    // المستخدمون
+    userBtnAdd:'إضافة مستخدم', userColName:'المستخدم',
+    userColRole:'الصلاحية', userColDate:'تاريخ الإنشاء',
+    userLabelName:'اسم المستخدم', userLabelPass:'الرقم السري',
+    // تاريخ الدين
+    custDebtDate:'تاريخ الدين:',
   },
   fr: {
     navSale:'Vente', navInventory:'Stock',
@@ -602,6 +620,33 @@ const APP_I18N = {
     errLoginFailed:'Identifiant ou mot de passe incorrect', errScaleNotConnected:'Balance non connectée',
     confirmDelete:'Confirmer la suppression?', confirmLogout:'Se déconnecter?', confirmCloseDay:'Clôturer la journée?',
     dialogYes:'Oui', dialogNo:'Non', dialogOk:'OK',
+    currencyLabel:'DA',
+    invAlerts:'Stock alerts', invTabAll:'All products', invTabFamilies:'Families',
+    invTabImport:'Import / Export', invFormTitleAdd:'Add new product',
+    invColUnit:'Unit', invColExpiry:'Expiry', invColAlert:'Alert',
+    invLabelName:'Product name', invLabelSize:'Size / Format', invLabelExpiry:'Expiry date',
+    invBtnClear:'Clear fields', invImportTitle:'Import products', invExportTitle:'Export products',
+    invBtnExport:'Export all (CSV)', invBtnTemplate:'Download CSV template',
+    invImportConfirm:'Confirm import', invImportAccept:'Accept update', invImportSkip:'Skip duplicates',
+    supBtnAdd:'Add supplier', supSearch:'Search supplier...',
+    supAddress:'Address', supActivity:'Activity type',
+    userBtnAdd:'Add user', userColName:'User',
+    userColRole:'Role', userColDate:'Creation date',
+    userLabelName:'Username', userLabelPass:'Password',
+    custDebtDate:'Debt date:',
+    invAlerts:'Alertes stock', invTabAll:'Tous les produits', invTabFamilies:'Familles',
+    invTabImport:'Import / Export', invFormTitleAdd:'Ajouter un produit',
+    invColUnit:'Unité', invColExpiry:'Expiration', invColAlert:'Alerte',
+    invLabelName:'Nom du produit', invLabelSize:'Taille / Format', invLabelExpiry:"Date d'expiration",
+    invBtnClear:'Vider les champs', invImportTitle:'Importer des produits', invExportTitle:'Exporter les produits',
+    invBtnExport:'Exporter tous (CSV)', invBtnTemplate:'Télécharger modèle CSV',
+    invImportConfirm:"Confirmer l'import", invImportAccept:'Accepter mise à jour', invImportSkip:'Ignorer les doublons',
+    supBtnAdd:'Ajouter fournisseur', supSearch:'Rechercher fournisseur...',
+    supAddress:'Adresse', supActivity:'Activité',
+    userBtnAdd:'Ajouter utilisateur', userColName:'Utilisateur',
+    userColRole:'Rôle', userColDate:'Date création',
+    userLabelName:"Nom d'utilisateur", userLabelPass:'Mot de passe',
+    custDebtDate:'Date dette:',
   },
   en: {
     navSale:'Sale', navInventory:'Inventory',
@@ -659,6 +704,7 @@ const APP_I18N = {
     errLoginFailed:'Invalid username or password', errScaleNotConnected:'Scale not connected',
     confirmDelete:'Confirm deletion?', confirmLogout:'Logout?', confirmCloseDay:'Close the day?',
     dialogYes:'Yes', dialogNo:'No', dialogOk:'OK',
+    currencyLabel:'DA',
   }
 };
 
@@ -671,8 +717,13 @@ function t(key) {
 function applyPageTranslation(lang) {
   const dict = APP_I18N[lang] || APP_I18N.ar;
   const dir  = lang === 'ar' ? 'rtl' : 'ltr';
-  document.documentElement.lang = lang;
-  document.documentElement.dir  = dir;
+
+  // login.html ثابتة — لا تتغير باللغة أبداً
+  const isLogin = window.location.pathname.includes('login');
+  if (!isLogin) {
+    document.documentElement.lang = lang;
+    document.documentElement.dir  = dir;
+  }
   localStorage.setItem('posdz_lang', lang);
 
   document.querySelectorAll('[data-i18n]').forEach(el => {
@@ -696,6 +747,15 @@ function applyPageTranslation(lang) {
     }
   }
   window._i18n = dict;
+
+  // تحديث رمز العملة عند تغيير اللغة
+  // currency variable موجود في كل صفحة تحمل البيانات
+  const curLabel = dict.currencyLabel;
+  if (curLabel) {
+    _currency = curLabel; // _currency في app.js
+    // تحديث متغير currency المحلي في الصفحة (sale, inventory, customers...)
+    try { if (typeof currency !== 'undefined') currency = curLabel; } catch(e){}
+  }
 }
 
 // ══════════════════════════════════════════════════════════════
