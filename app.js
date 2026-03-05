@@ -242,46 +242,165 @@ async function createBackup() {
 async function printInvoice(sale,items) {
   const g=k=>getSetting(k);
   const [sName,sPhone,sAddr,sWelcome,cur,sLogo,pSize,pLogo,pName,pPhone,pAddr,pWelcome,pBarcode]=
-    await Promise.all(['storeName','storePhone','storeAddress','storeWelcome','currency','storeLogo','paperSize','printLogo','printName','printPhone','printAddress','printWelcome','printBarcode'].map(g));
-  const w={'58mm':'54mm','80mm':'76mm','A5':'148mm','A4':'210mm'}[pSize]||'76mm';
-  const now=new Date(sale.date||new Date()),dStr=now.toLocaleDateString('ar-DZ'),tStr=now.toLocaleTimeString('ar-DZ',{hour:'2-digit',minute:'2-digit'});
-  let lbl=sale.debtSettlement&&sale.partialSettlement?`فاتورة تسديد جزئي #${sale.invoiceNumber}`:sale.debtSettlement?`فاتورة تسديد #${sale.invoiceNumber}`:sale.isDebt?`فاتورة دين #${sale.invoiceNumber}`:`فاتورة: #${sale.invoiceNumber}`;
-  let html=`<!DOCTYPE html><html dir="rtl"><head><meta charset="UTF-8"><style>@page{margin:4mm;size:${w} auto;}*{margin:0;padding:0;box-sizing:border-box;}body{font-family:Arial,'Tahoma',sans-serif;font-size:10px;color:#000;width:${w};-webkit-print-color-adjust:exact;}.c{text-align:center;}.b{font-weight:900;}.xl{font-size:14px;font-weight:900;}.dl{border-top:2px solid #000;margin:4px 0;}.sl{border-top:1px dashed #000;margin:4px 0;}.rw{display:flex;justify-content:space-between;align-items:baseline;}table{width:100%;border-collapse:collapse;font-size:9px;table-layout:fixed;}th{font-weight:900;border-bottom:1px solid #000;padding:2px 1px;text-align:right;}td{padding:2px 1px;font-weight:700;word-break:break-all;}@media print{*{color:#000!important;}}</style></head><body>`;
-  html+=`<div class="rw b"><span>${lbl}</span><span>${dStr} ${tStr}</span></div><div class="dl"></div>`;
-  if(pLogo==='1'&&sLogo)html+=`<div class="c"><img src="${sLogo}" style="max-width:70px;max-height:70px;display:block;margin:0 auto 4px;"/></div>`;
-  if(pName==='1'&&sName)html+=`<div class="c xl b">${sName}</div>`;
-  if(pPhone==='1'&&sPhone)html+=`<div class="c b">${sPhone}</div>`;
-  if(pAddr==='1'&&sAddr)html+=`<div class="c b">${sAddr}</div>`;
-  if(sale.customerName){html+=`<div class="sl"></div><div class="rw"><span class="b">الزبون:</span><span class="b">${sale.customerName}</span></div>`;if(sale.customerPhone)html+=`<div class="rw"><span class="b">الهاتف:</span><span class="b">${sale.customerPhone}</span></div>`;}
-  html+=`<div class="dl"></div>`;
-  // رأس الجدول
-  html+=`<div style="display:flex;border-bottom:1px solid #000;padding:2px 0;margin-bottom:2px;font-weight:900;">`+
-        `<span style="flex:2.2">المنتج</span>`+
-        `<span style="flex:0.5;text-align:center">ك</span>`+
-        `<span style="flex:1.4;text-align:center">السعر</span>`+
-        `<span style="flex:1.4;text-align:left">المجموع</span>`+
-        `</div>`;
-  // أسطر المنتجات
-  items.forEach(i=>{
-    const nm=i.productName.length>16?i.productName.slice(0,15)+'…':i.productName;
-    html+=`<div style="display:flex;margin:2px 0;">`+
-          `<span style="flex:2.2;font-weight:700">${nm}</span>`+
-          `<span style="flex:0.5;text-align:center;font-weight:700">${i.quantity}</span>`+
-          `<span style="flex:1.4;text-align:center;font-weight:700">${parseFloat(i.unitPrice).toFixed(2)}</span>`+
-          `<span style="flex:1.4;text-align:left;font-weight:700">${parseFloat(i.total).toFixed(2)}</span>`+
-          `</div>`;
-  });
-  html+=`<div class="dl"></div>`;
-  if(sale.discount>0)html+=`<div class="rw b"><span>خصم:</span><span>- ${parseFloat(sale.discount).toFixed(2)} ${cur}</span></div>`;
-  html+=`<div class="rw xl b"><span>الإجمالي:</span><span>${parseFloat(sale.total).toFixed(2)} ${cur}</span></div>`;
-  if(sale.paid>0){html+=`<div class="rw b"><span>المدفوع:</span><span>${parseFloat(sale.paid).toFixed(2)} ${cur}</span></div>`;if(sale.isDebt)html+=`<div class="rw b"><span>الدين:</span><span>${(sale.total-sale.paid).toFixed(2)} ${cur}</span></div>`;}
-  if(sale.remainingDebt!==undefined)html+=`<div class="rw b"><span>المتبقي:</span><span>${parseFloat(sale.remainingDebt).toFixed(2)} ${cur}</span></div>`;
-  html+=`<div class="dl"></div>`;
-  if(pWelcome==='1'&&sWelcome)html+=`<div class="c b" style="font-size:13px;margin:6px 0;">${sWelcome}</div>`;
-  if(pBarcode==='1'&&sale.invoiceNumber)html+=`<div class="c" style="font-family:monospace;font-size:10px;margin-top:4px;">||||| ${sale.invoiceNumber} |||||</div>`;
-  html+=`<div class="c" style="font-size:8px;opacity:0.5;margin-top:4px;">${APP_VERSION.name} v${APP_VERSION.number}</div></body></html>`;
-  _silentPrint(html);
+    await Promise.all(['storeName','storePhone','storeAddress','storeWelcome','currency',
+      'storeLogo','paperSize','printLogo','printName','printPhone','printAddress',
+      'printWelcome','printBarcode'].map(g));
+
+  // ── عرض الورق الحرارية ──
+  const PW = pSize==='58mm' ? '56mm' : '76mm'; // 58mm→56mm | 80mm→76mm
+
+  // ── التاريخ والساعة يدوياً (متوافق مع كل الأنظمة) ──
+  const D  = new Date(sale.date || Date.now());
+  const p2 = n => ('0'+n).slice(-2);
+  const dateStr = D.getFullYear()+'/'+p2(D.getMonth()+1)+'/'+p2(D.getDate());
+  const timeStr = p2(D.getHours())+':'+p2(D.getMinutes());
+
+  // ── عنوان الفاتورة ──
+  const lbl = sale.debtSettlement && sale.partialSettlement
+    ? 'فاتورة تسديد جزئي #'+sale.invoiceNumber
+    : sale.debtSettlement  ? 'فاتورة تسديد #'+sale.invoiceNumber
+    : sale.isDebt          ? 'فاتورة دين #'+sale.invoiceNumber
+    : 'فاتورة #'+sale.invoiceNumber;
+
+  // ── CSS مُحكم للطباعة الحرارية ──
+  const css = `
+@page { margin:2mm; size:${PW==='56mm'?'58mm':'80mm'} auto; }
+* { margin:0; padding:0; box-sizing:border-box; }
+body {
+  font-family: Arial, Tahoma, sans-serif;
+  font-size: 11pt;
+  color: #000;
+  width: ${PW};
+  max-width: ${PW};
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
 }
+.center  { text-align:center; }
+.bold    { font-weight:900; }
+.xlarge  { font-size:14pt; font-weight:900; }
+.line-d  { border-top:2px solid #000; margin:3px 0; }
+.line-s  { border-top:1px dashed #000; margin:2px 0; }
+.flex-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  width: 100%;
+}
+/* جدول المنتجات — TABLE أكثر موثوقية من flex في الطباعة */
+table.items {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+  font-size: 10pt;
+}
+table.items th {
+  font-weight: 900;
+  border-bottom: 1px solid #000;
+  padding: 1px 1px 2px;
+  text-align: right;
+  font-size: 10pt;
+}
+table.items td {
+  padding: 2px 1px;
+  font-weight: 700;
+  vertical-align: middle;
+  font-size: 10pt;
+  word-break: break-word;
+}
+/* أعمدة ثابتة العرض */
+.col-n  { width:auto; text-align:right; }
+.col-q  { width:16pt; text-align:center; }
+.col-p  { width:44pt; text-align:right; }
+.col-t  { width:44pt; text-align:right; }
+@media print { * { color:#000 !important; } }
+`;
+
+  let H = '<!DOCTYPE html><html dir="rtl"><head><meta charset="UTF-8">';
+  H += '<style>'+css+'</style></head><body>';
+
+  // ── رأس: رقم الفاتورة + التاريخ + الساعة ──
+  H += '<div class="flex-row bold">';
+  H += '<span>'+lbl+'</span>';
+  H += '<span>'+dateStr+' '+timeStr+'</span>';
+  H += '</div>';
+  H += '<div class="line-d"></div>';
+
+  // ── بيانات المتجر ──
+  if (pLogo==='1' && sLogo)
+    H += '<div class="center"><img src="'+sLogo+'" style="max-width:55px;max-height:55px;display:block;margin:0 auto 2px;"/></div>';
+  if (pName==='1' && sName)
+    H += '<div class="center xlarge">'+sName+'</div>';
+  if (pPhone==='1' && sPhone)
+    H += '<div class="center bold">'+sPhone+'</div>';
+  if (pAddr==='1' && sAddr)
+    H += '<div class="center bold">'+sAddr+'</div>';
+
+  // ── بيانات الزبون ──
+  if (sale.customerName) {
+    H += '<div class="line-s"></div>';
+    H += '<div class="flex-row"><span class="bold">الزبون:</span><span class="bold">'+sale.customerName+'</span></div>';
+    if (sale.customerPhone)
+      H += '<div class="flex-row"><span class="bold">الهاتف:</span><span class="bold">'+sale.customerPhone+'</span></div>';
+  }
+  H += '<div class="line-d"></div>';
+
+  // ── جدول المنتجات ──
+  H += '<table class="items">';
+  H += '<thead><tr>';
+  H += '<th class="col-n">المنتج</th>';
+  H += '<th class="col-q">ك</th>';
+  H += '<th class="col-p">السعر</th>';
+  H += '<th class="col-t">المجموع</th>';
+  H += '</tr></thead><tbody>';
+
+  items.forEach(function(i) {
+    const nm  = (i.productName||'').length > 16
+                ? (i.productName||'').slice(0,15)+'…'
+                : (i.productName||'—');
+    const up  = parseFloat(i.unitPrice  || 0).toFixed(2);
+    const tot = parseFloat(i.total      || 0).toFixed(2);
+    const qty = parseFloat(i.quantity   || 1);
+    H += '<tr>';
+    H += '<td class="col-n">'+nm+'</td>';
+    H += '<td class="col-q">'+qty+'</td>';
+    H += '<td class="col-p">'+up+'</td>';
+    H += '<td class="col-t">'+tot+'</td>';
+    H += '</tr>';
+  });
+
+  H += '</tbody></table>';
+  H += '<div class="line-d"></div>';
+
+  // ── الإجماليات ──
+  const C = cur || 'دج';
+  if (parseFloat(sale.discount||0) > 0)
+    H += '<div class="flex-row bold"><span>خصم:</span><span>- '+parseFloat(sale.discount).toFixed(2)+' '+C+'</span></div>';
+
+  H += '<div class="flex-row xlarge"><span>الإجمالي:</span><span>'+parseFloat(sale.total||0).toFixed(2)+' '+C+'</span></div>';
+
+  if (parseFloat(sale.paid||0) > 0) {
+    H += '<div class="flex-row bold"><span>المدفوع:</span><span>'+parseFloat(sale.paid).toFixed(2)+' '+C+'</span></div>';
+    if (sale.isDebt) {
+      const debt = parseFloat(sale.total||0) - parseFloat(sale.paid||0);
+      H += '<div class="flex-row bold"><span>الدين:</span><span>'+debt.toFixed(2)+' '+C+'</span></div>';
+    }
+  }
+  if (sale.remainingDebt !== undefined)
+    H += '<div class="flex-row bold"><span>المتبقي:</span><span>'+parseFloat(sale.remainingDebt).toFixed(2)+' '+C+'</span></div>';
+
+  H += '<div class="line-d"></div>';
+
+  if (pWelcome==='1' && sWelcome)
+    H += '<div class="center bold" style="font-size:12pt;margin:4px 0;">'+sWelcome+'</div>';
+  if (pBarcode==='1' && sale.invoiceNumber)
+    H += '<div class="center" style="font-family:monospace;font-size:10pt;letter-spacing:3px;margin-top:3px;">||||| '+sale.invoiceNumber+' |||||</div>';
+
+  H += '<div class="center" style="font-size:7pt;color:#999;margin-top:4px;">'+APP_VERSION.name+' v'+APP_VERSION.number+'</div>';
+  H += '</body></html>';
+
+  _silentPrint(H);
+}
+
 
 function _silentPrint(html) {
   document.getElementById('_posdzPrintFrame')?.remove();
