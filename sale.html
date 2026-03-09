@@ -1075,10 +1075,10 @@ function renderCart(){
     return `
     <div class="cart-item-row">
 
-      <!-- العائلة / المنتج: في نفس السطر -->
-      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+      <!-- العائلة / المنتج: في نفس السطر — بدون أرقام -->
+      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
         <span style="font-size:1rem;font-weight:900;color:var(--text-primary);line-height:1.2;white-space:nowrap;">${item.name}</span>
-        ${item.size ? `<span style="font-size:0.9rem;font-weight:700;color:var(--primary-light);white-space:nowrap;">${item.size}</span>` : ''}
+        ${(item.size && isNaN(item.size)) ? `<span style="font-size:0.88rem;font-weight:700;color:var(--primary-light);white-space:nowrap;">${item.size}</span>` : ''}
       </div>
 
       <!-- الحجم/الوحدة -->
