@@ -79,9 +79,8 @@
       <!-- إحصائيات -->
       <div class="exp-stats" id="expStats">
         <div class="exp-stat"><div class="val" id="statToday">0.00</div><div class="lbl">💸 مصاريف اليوم</div></div>
-        <div class="exp-stat"><div class="val" id="statMonth">0.00</div><div class="lbl">📅 مصاريف الشهر</div></div>
-        <div class="exp-stat"><div class="val" id="statCount">0</div><div class="lbl">📋 عدد العمليات</div></div>
-        <div class="exp-stat"><div class="val" id="statSalaries">0.00</div><div class="lbl">👷 رواتب الشهر</div></div>
+        <div class="exp-stat" style="border-color:rgba(239,68,68,0.4);"><div class="val" id="statUnpaid" style="color:#ef4444;">0</div><div class="lbl">🔴 الفواتير غير المسددة</div></div>
+        <div class="exp-stat" style="border-color:rgba(16,185,129,0.4);"><div class="val" id="statPaid" style="color:#10b981;">0</div><div class="lbl">✅ الفواتير المسددة</div></div>
       </div>
 
       <div style="display:grid;grid-template-columns:1fr 1.6fr;gap:18px;">
@@ -132,8 +131,8 @@
         <div class="card" style="padding:0;overflow:hidden;">
           <div style="padding:12px 16px;background:var(--bg-dark);border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;">
             <span style="font-weight:700;color:var(--primary-light);">سجل المصاريف العامة</span>
-            <div style="display:flex;gap:8px;flex-wrap:wrap;">
-              <input class="input-field" type="date" id="filterExpDate" style="width:140px;font-size:0.82rem;" onchange="loadExpenses()"/>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+              <input class="input-field" type="date" id="filterExpDate" style="width:140px;font-size:0.82rem;" onchange="loadExpenses()" title="بحث في الفواتير المسددة بالتاريخ"/>
               <select class="select-field" id="filterExpCat" style="width:130px;font-size:0.82rem;" onchange="loadExpenses()">
                 <option value="">كل الفئات</option>
                 <option value="كهرباء وغاز">⚡🔥 كهرباء وغاز</option>
@@ -148,7 +147,17 @@
               </select>
             </div>
           </div>
-          <div id="expListWrap" style="max-height:440px;overflow-y:auto;padding:10px 12px;"></div>
+          <!-- قسم الفواتير غير المسددة -->
+          <div style="padding:8px 12px 2px;background:rgba(239,68,68,0.06);border-bottom:1px solid rgba(239,68,68,0.2);">
+            <span style="font-size:0.78rem;font-weight:800;color:#ef4444;">🔴 الفواتير غير المسددة</span>
+          </div>
+          <div id="expUnpaidWrap" style="max-height:260px;overflow-y:auto;padding:8px 12px;"></div>
+          <!-- قسم الفواتير المسددة -->
+          <div style="padding:8px 12px 2px;background:rgba(16,185,129,0.06);border-top:2px solid var(--border);border-bottom:1px solid rgba(16,185,129,0.2);">
+            <span style="font-size:0.78rem;font-weight:800;color:#10b981;">✅ الفواتير المسددة</span>
+            <span style="font-size:0.72rem;color:var(--text-secondary);margin-right:8px;">(حدد تاريخاً للبحث)</span>
+          </div>
+          <div id="expPaidWrap" style="max-height:220px;overflow-y:auto;padding:8px 12px;"></div>
         </div>
       </div>
     </div>
@@ -157,6 +166,14 @@
     <!-- TAB: مصاريف العمال                             -->
     <!-- ══════════════════════════════════════════════ -->
     <div class="tab-content" id="tab-workers">
+
+      <!-- إحصاء رواتب العمال -->
+      <div class="exp-stats" style="margin-bottom:16px;">
+        <div class="exp-stat" style="border-color:rgba(16,185,129,0.4);">
+          <div class="val" id="statWorkerSalaries" style="color:#10b981;">0.00</div>
+          <div class="lbl">👷 رواتب العمال هذا الشهر</div>
+        </div>
+      </div>
 
       <div style="display:grid;grid-template-columns:1fr 2fr;gap:18px;align-items:start;">
 
@@ -394,6 +411,9 @@ function toggleCustomCat() {
     document.getElementById('expCat').value === 'أخرى' ? '' : 'none';
 }
 
+// الفئات المقيّدة: مرة واحدة في الشهر — لا تاريخ قديم
+const RESTRICTED_CATS = ['كهرباء وغاز', 'هاتف', 'أنترنت', 'كراء'];
+
 async function saveExpense() {
   const id  = document.getElementById('editExpId').value;
   const cat = document.getElementById('expCat').value === 'أخرى'
@@ -403,16 +423,39 @@ async function saveExpense() {
   const date = document.getElementById('expDate').value || todayIso();
   const note = document.getElementById('expNote').value.trim();
 
-  if(!cat)            { toast('الفئة مطلوبة','warning'); return; }
-  if(!amt || amt<=0)  { toast('المبلغ يجب أن يكون أكبر من صفر','warning'); return; }
+  if(!cat)           { toast('الفئة مطلوبة','warning'); return; }
+  if(!amt || amt<=0) { toast('المبلغ يجب أن يكون أكبر من صفر','warning'); return; }
 
-  const data = { category:cat, amount:amt, date, note, createdAt:new Date().toISOString() };
-  if(id) { data.id=parseInt(id); await dbPut('expenses',data); toast('تم تعديل المصروف ✅','success'); }
-  else   { await dbAdd('expenses',data); toast('تم حفظ المصروف ✅','success'); }
+  // قواعد الفئات المقيّدة (فقط عند الإضافة وليس التعديل)
+  if (!id && RESTRICTED_CATS.includes(cat)) {
+    // منع التاريخ القديم
+    if (date < todayIso()) {
+      toast(`⛔ لا يمكن تسجيل "${cat}" بتاريخ قديم`, 'warning'); return;
+    }
+    // منع التكرار في نفس الشهر
+    const allExp = await dbGetAll('expenses');
+    const monthStr = date.slice(0,7);
+    const exists = allExp.find(e => e.category === cat && e.date && e.date.startsWith(monthStr));
+    if (exists) {
+      toast(`⚠️ تم تسجيل "${cat}" هذا الشهر (${fmtDate(exists.date)}) — لا يمكن التكرار`, 'warning'); return;
+    }
+  }
+
+  // كل مصروف يُسجَّل كـ "غير مسدد" تلقائياً
+  const data = { category:cat, amount:amt, date, note, isPaid:false, paidDate:null, createdAt:new Date().toISOString() };
+  if(id) {
+    data.id = parseInt(id);
+    // عند التعديل نحافظ على حالة التسديد الأصلية
+    const orig = allExpenses.find(x=>x.id===data.id);
+    if(orig) { data.isPaid = orig.isPaid||false; data.paidDate = orig.paidDate||null; }
+    await dbPut('expenses', data);
+    toast('تم تعديل المصروف ✅','success');
+  } else {
+    await dbAdd('expenses', data);
+    toast('تم حفظ المصروف ✅ — غير مسدد','success');
+  }
 
   clearExpForm();
-  // مزامنة فلتر التاريخ مع تاريخ المصروف المحفوظ لضمان ظهوره فوراً
-  document.getElementById('filterExpDate').value = date;
   await loadExpenses();
   await updateStats();
 }
@@ -432,36 +475,69 @@ async function loadExpenses() {
   const dateFilter = document.getElementById('filterExpDate')?.value || '';
   const catFilter  = document.getElementById('filterExpCat')?.value  || '';
 
-  // المصاريف العامة فقط — مصاريف العمال (category='عمال') تظهر في تبويب العمال فقط
-  let list = [...allExpenses]
-    .filter(e => e.category !== 'عمال')
-    .sort((a,b)=>new Date(b.date)-new Date(a.date));
-  if(dateFilter) list = list.filter(e=>e.date && e.date.startsWith(dateFilter));
-  if(catFilter)  list = list.filter(e=>e.category===catFilter);
+  // استبعاد مصاريف العمال
+  let list = allExpenses.filter(e => e.category !== 'عمال');
+  if (catFilter) list = list.filter(e => e.category === catFilter);
 
-  const wrap = document.getElementById('expListWrap');
-  if(!list.length) {
-    wrap.innerHTML = '<div class="empty-state"><div class="empty-icon">💸</div><p>لا توجد مصاريف بهذه المعايير</p></div>';
-    return;
+  // ── قسم 1: غير مسددة — تظهر دائماً بصرف النظر عن الفلتر ──
+  let unpaid = list.filter(e => !e.isPaid).sort((a,b)=>new Date(b.date)-new Date(a.date));
+  const unpaidWrap = document.getElementById('expUnpaidWrap');
+  if (!unpaid.length) {
+    unpaidWrap.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text-secondary);font-size:0.85rem;">✅ لا توجد فواتير غير مسددة</div>';
+  } else {
+    unpaidWrap.innerHTML = unpaid.map(e => {
+      const color = catColor(e.category);
+      return `<div class="exp-list-item" style="border-right:3px solid #ef4444;">
+        <div class="exp-cat-icon" style="background:${color}22;border:1px solid ${color}44;">${catIcon(e.category)}</div>
+        <div class="exp-info">
+          <div class="exp-cat">${e.category}</div>
+          ${e.note ? `<div class="exp-note">${e.note}</div>` : ''}
+          <div class="exp-date">📅 تسجيل: ${fmtDate(e.date)}</div>
+        </div>
+        <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;">
+          <span class="exp-amount">- ${parseFloat(e.amount).toFixed(2)} ${currency}</span>
+          <span style="font-size:0.7rem;font-weight:700;color:#ef4444;background:rgba(239,68,68,0.1);padding:2px 7px;border-radius:10px;">غير مسدد</span>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:4px;">
+          <button class="btn btn-sm btn-success" onclick="payExpense(${e.id})" title="تسديد"><i class="fa-solid fa-check"></i> تسديد</button>
+          <button class="btn btn-sm btn-primary"  onclick="editExpense(${e.id})" title="تعديل">✏️</button>
+          <button class="btn btn-sm btn-danger"   onclick="deleteExpense(${e.id})" title="حذف">🗑️</button>
+        </div>
+      </div>`;
+    }).join('');
   }
-  wrap.innerHTML = list.map(e=>{
-    const color = catColor(e.category);
-    return `<div class="exp-list-item">
-      <div class="exp-cat-icon" style="background:${color}22;border:1px solid ${color}44;">${catIcon(e.category)}</div>
-      <div class="exp-info">
-        <div class="exp-cat">${e.category}</div>
-        ${e.note ? `<div class="exp-note">${e.note}</div>` : ''}
-      </div>
-      <div style="display:flex;flex-direction:column;align-items:flex-end;gap:3px;">
-        <span class="exp-amount">- ${parseFloat(e.amount).toFixed(2)} ${currency}</span>
-        <span class="exp-date">${fmtDate(e.date)}</span>
-      </div>
-      <div style="display:flex;flex-direction:column;gap:4px;">
-        <button class="btn btn-sm btn-primary" onclick="editExpense(${e.id})" title="تعديل">✏️</button>
-        <button class="btn btn-sm btn-danger"  onclick="deleteExpense(${e.id})" title="حذف">🗑️</button>
-      </div>
-    </div>`;
-  }).join('');
+
+  // ── قسم 2: مسددة — تُفلتر بتاريخ التسديد paidDate ──
+  let paid = list.filter(e => e.isPaid);
+  if (dateFilter) paid = paid.filter(e => e.paidDate && e.paidDate.startsWith(dateFilter));
+  else paid = []; // لا تُعرض إلا عند اختيار تاريخ
+  paid.sort((a,b)=>new Date(b.paidDate)-new Date(a.paidDate));
+
+  const paidWrap = document.getElementById('expPaidWrap');
+  if (!dateFilter) {
+    paidWrap.innerHTML = '<div style="text-align:center;padding:16px;color:var(--text-secondary);font-size:0.82rem;">📅 اختر تاريخاً للبحث في الفواتير المسددة</div>';
+  } else if (!paid.length) {
+    paidWrap.innerHTML = '<div style="text-align:center;padding:16px;color:var(--text-secondary);font-size:0.82rem;">لا توجد فواتير مسددة في هذا التاريخ</div>';
+  } else {
+    paidWrap.innerHTML = paid.map(e => {
+      const color = catColor(e.category);
+      return `<div class="exp-list-item" style="border-right:3px solid #10b981;opacity:0.85;">
+        <div class="exp-cat-icon" style="background:${color}22;border:1px solid ${color}44;">${catIcon(e.category)}</div>
+        <div class="exp-info">
+          <div class="exp-cat">${e.category}</div>
+          ${e.note ? `<div class="exp-note">${e.note}</div>` : ''}
+          <div class="exp-date">📅 تسجيل: ${fmtDate(e.date)} &nbsp;|&nbsp; ✅ تسديد: ${fmtDate(e.paidDate)}</div>
+        </div>
+        <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;">
+          <span class="exp-amount" style="color:#10b981;">- ${parseFloat(e.amount).toFixed(2)} ${currency}</span>
+          <span style="font-size:0.7rem;font-weight:700;color:#10b981;background:rgba(16,185,129,0.1);padding:2px 7px;border-radius:10px;">مسدد</span>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:4px;">
+          <button class="btn btn-sm btn-danger" onclick="deleteExpense(${e.id})" title="حذف">🗑️</button>
+        </div>
+      </div>`;
+    }).join('');
+  }
 }
 
 async function editExpense(id) {
@@ -764,19 +840,45 @@ async function showWorkerHistory(workerId) {
   openModal('workerHistoryModal');
 }
 
-/* ── إحصائيات ── */
-async function updateStats() {
-  const allExp  = await dbGetAll('expenses');
-  const today   = todayIso();
-  const month   = today.slice(0,7);
-  const expToday = allExp.filter(e=>e.date&&e.date.startsWith(today)).reduce((s,e)=>s+e.amount,0);
-  const expMonth = allExp.filter(e=>e.date&&e.date.startsWith(month)).reduce((s,e)=>s+e.amount,0);
-  const salMonth = allExp.filter(e=>e.date&&e.date.startsWith(month)&&e.category==='عمال').reduce((s,e)=>s+e.amount,0);
+// ── تسديد فاتورة ─────────────────────────────
+async function payExpense(id) {
+  const e = allExpenses.find(x => x.id === id);
+  if (!e) return;
+  if (!await customConfirmAsync(`تأكيد تسديد فاتورة "${e.category}" — ${parseFloat(e.amount).toFixed(2)} ${currency} ؟\nتاريخ التسديد: ${fmtDate(todayIso())}`)) return;
+  const updated = { ...e, isPaid: true, paidDate: todayIso() };
+  await dbPut('expenses', updated);
+  toast(`✅ تم تسديد فاتورة ${e.category}`, 'success');
+  await loadExpenses();
+  await updateStats();
+}
 
-  document.getElementById('statToday').textContent    = expToday.toFixed(2) + ' ' + currency;
-  document.getElementById('statMonth').textContent    = expMonth.toFixed(2) + ' ' + currency;
-  document.getElementById('statCount').textContent    = allExp.filter(e=>e.date&&e.date.startsWith(month)).length;
-  document.getElementById('statSalaries').textContent = salMonth.toFixed(2) + ' ' + currency;
+async function updateStats() {
+  const allExp = await dbGetAll('expenses');
+  const today  = todayIso();
+  const month  = today.slice(0,7);
+  const general = allExp.filter(e => e.category !== 'عمال');
+
+  // مصاريف اليوم = مدفوعة اليوم + مصاريف غير مقيدة بتاريخ اليوم
+  const expToday = general
+    .filter(e => (e.isPaid && e.paidDate === today) || (!e.isPaid && e.date === today))
+    .reduce((s,e) => s + parseFloat(e.amount||0), 0);
+
+  // عدد الفواتير غير المسددة
+  const unpaidList = general.filter(e => !e.isPaid);
+  const unpaidTotal = unpaidList.reduce((s,e) => s + parseFloat(e.amount||0), 0);
+
+  // فواتير مسددة هذا الشهر
+  const paidList = general.filter(e => e.isPaid && e.paidDate && e.paidDate.startsWith(month));
+  const paidTotal = paidList.reduce((s,e) => s + parseFloat(e.amount||0), 0);
+
+  document.getElementById('statToday').textContent  = expToday.toFixed(2) + ' ' + currency;
+  document.getElementById('statUnpaid').textContent = unpaidList.length + (unpaidTotal>0 ? ` (${unpaidTotal.toFixed(0)})` : '');
+  document.getElementById('statPaid').textContent   = paidList.length   + (paidTotal>0  ? ` (${paidTotal.toFixed(0)})`  : '');
+
+  // رواتب العمال هذا الشهر
+  const salMonth = allExp.filter(e=>e.category==='عمال'&&e.date&&e.date.startsWith(month)).reduce((s,e)=>s+parseFloat(e.amount||0),0);
+  const salEl = document.getElementById('statWorkerSalaries');
+  if (salEl) salEl.textContent = salMonth.toFixed(2) + ' ' + currency;
 }
 
 function doLogout() {
