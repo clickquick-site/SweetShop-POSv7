@@ -1,1 +1,1 @@
-# SweetShop-POSv7
+# SweetShop-POSv7.4
