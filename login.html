@@ -3,6 +3,8 @@
 <html lang="ar" dir="rtl">
 <head>
   <meta charset="UTF-8"/>
+  <link rel="icon" type="image/svg+xml" href="favicon.svg"/>
+  <link rel="shortcut icon" href="favicon.svg"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>POS DZ - تسجيل الدخول</title>
   <link rel="stylesheet" href="style.css"/>
@@ -294,37 +296,113 @@ async function loadUsers() {
 }
 
 // ── Login ──
+// ── نظام تحديد محاولات الدخول الفاشلة ──────────────────────
+const MAX_ATTEMPTS = 5;
+const LOCKOUT_MS   = 5 * 60 * 1000; // 5 دقائق
+const ATTEMPTS_KEY = 'posdz_login_attempts';
+
+function _getAttempts() {
+  try { return JSON.parse(localStorage.getItem(ATTEMPTS_KEY)) || { count:0, lockedUntil:0 }; }
+  catch { return { count:0, lockedUntil:0 }; }
+}
+function _saveAttempts(obj) { localStorage.setItem(ATTEMPTS_KEY, JSON.stringify(obj)); }
+function _clearAttempts()   { localStorage.removeItem(ATTEMPTS_KEY); }
+
+function _checkLockout() {
+  const a = _getAttempts();
+  if (a.lockedUntil && Date.now() < a.lockedUntil) {
+    const rem = Math.ceil((a.lockedUntil - Date.now()) / 1000);
+    const m   = Math.floor(rem / 60), s = rem % 60;
+    return `🔒 الحساب مقفل — انتظر ${m}:${String(s).padStart(2,'0')}`;
+  }
+  // انتهى الإقفال — أعد التعيين
+  if (a.lockedUntil && Date.now() >= a.lockedUntil) _clearAttempts();
+  return null;
+}
+
+// تحديث العداد المرئي كل ثانية أثناء الإقفال
+let _lockTimer = null;
+function _startLockCountdown(errEl) {
+  if (_lockTimer) clearInterval(_lockTimer);
+  _lockTimer = setInterval(() => {
+    const msg = _checkLockout();
+    if (msg) {
+      errEl.textContent = msg;
+    } else {
+      clearInterval(_lockTimer);
+      errEl.textContent = '';
+      document.getElementById('passwordInput').disabled = false;
+      document.querySelector('button[onclick="doLogin()"]') &&
+        (document.querySelector('button[onclick="doLogin()"]').disabled = false);
+    }
+  }, 1000);
+}
+
 async function doLogin() {
   const username = document.getElementById('usernameSelect').value;
   const password = document.getElementById('passwordInput').value;
-  const errEl = document.getElementById('errorMsg');
+  const errEl    = document.getElementById('errorMsg');
 
   if (!username || !password) {
     errEl.textContent = '⚠️ يرجى اختيار المستخدم وإدخال الرقم السري';
     return;
   }
 
-  const users = await dbGetAll('users');
-  // verifyPassword تدعم كلا الـ hash (sha_ و h_)
+  // تحقق من الإقفال
+  const lockMsg = _checkLockout();
+  if (lockMsg) {
+    errEl.textContent = lockMsg;
+    _startLockCountdown(errEl);
+    return;
+  }
+
+  const users   = await dbGetAll('users');
   const results = await Promise.all(users.map(u => verifyPassword(password, u.password).then(ok => ok ? u : null)));
-  const user = results.find(u => u !== null);
+  const user    = results.find(u => u !== null);
 
   if (user) {
+    _clearAttempts();
     errEl.textContent = '';
     saveSession(user);
     if (document.getElementById('rememberMe').checked) {
       localStorage.setItem('posdz_last_user', username);
     }
     toast('مرحباً ' + user.username + '! 🎉', 'success', 1200);
-    // Fire login notification (stored in localStorage, shown on next page)
     try { notifLogin(user.username); } catch(e) {}
     setTimeout(() => { window.location.href = 'sale.html'; }, 1000);
   } else {
-    errEl.textContent = '❌ اسم المستخدم أو الرقم السري غير صحيح';
-    document.getElementById('passwordInput').style.borderColor = 'var(--danger)';
-    setTimeout(() => { document.getElementById('passwordInput').style.borderColor = ''; }, 1500);
+    // تسجيل المحاولة الفاشلة
+    const a = _getAttempts();
+    a.count = (a.count || 0) + 1;
+    const remaining = MAX_ATTEMPTS - a.count;
+
+    if (a.count >= MAX_ATTEMPTS) {
+      a.lockedUntil = Date.now() + LOCKOUT_MS;
+      _saveAttempts(a);
+      document.getElementById('passwordInput').disabled = true;
+      errEl.textContent = `🔒 تجاوزت ${MAX_ATTEMPTS} محاولات — الحساب مقفل 5 دقائق`;
+      _startLockCountdown(errEl);
+    } else {
+      _saveAttempts(a);
+      errEl.textContent = `❌ رقم سري خاطئ — ${remaining} محاولة متبقية`;
+      document.getElementById('passwordInput').style.borderColor = 'var(--danger)';
+      setTimeout(() => { document.getElementById('passwordInput').style.borderColor = ''; }, 1500);
+    }
+    document.getElementById('passwordInput').value = '';
+    document.getElementById('passwordInput').focus();
   }
 }
+
+// عند تحميل الصفحة — تحقق من وجود إقفال سابق
+window.addEventListener('DOMContentLoaded', () => {
+  const errEl  = document.getElementById('errorMsg');
+  const lockMsg = _checkLockout();
+  if (lockMsg && errEl) {
+    errEl.textContent = lockMsg;
+    document.getElementById('passwordInput').disabled = true;
+    _startLockCountdown(errEl);
+  }
+});
 
 // Enter key
 document.addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
