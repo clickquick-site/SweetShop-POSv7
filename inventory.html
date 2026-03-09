@@ -2,6 +2,8 @@
 <html lang="ar" dir="rtl">
 <head>
   <meta charset="UTF-8"/>
+  <link rel="icon" type="image/svg+xml" href="favicon.svg"/>
+  <link rel="shortcut icon" href="favicon.svg"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>POS DZ - إدارة المخزون</title>
   <link rel="stylesheet" href="style.css"/>
@@ -52,6 +54,7 @@
     <div class="tabs-bar">
       <button class="tab-btn active" onclick="switchTab('all')"><span data-i18n="invTabAll">كل المنتجات</span></button>
       <button class="tab-btn" onclick="switchTab('add')"><span data-i18n="invAddProduct">إضافة منتج</span></button>
+      <button class="tab-btn" onclick="switchTab('adjust')">🔧 تعديل المخزون</button>
       <button class="tab-btn" onclick="switchTab('families')"><span data-i18n="invTabFamilies">العائلات</span></button>
       <button class="tab-btn" onclick="switchTab('import')"><span data-i18n="invTabImport">استيراد / تصدير</span></button>
     </div>
@@ -116,6 +119,10 @@
             <input class="input-field" type="number" id="productQty" placeholder="0" min="0"/>
           </div>
           <div class="input-group">
+            <label class="input-label">🔔 حد التنبيه (نفاذ)</label>
+            <input class="input-field" type="number" id="productMinStock" placeholder="5" min="0"/>
+          </div>
+          <div class="input-group">
             <label class="input-label"><span data-i18n="invLabelExpiry">تاريخ نهاية الصلاحية</span></label>
             <input class="input-field" type="date" id="productExpiry"/>
           </div>
@@ -168,13 +175,93 @@
       </div>
     </div>
   </div>
-</div>
 
-<!-- Confirm Import Modal -->
+    <!-- TAB: Stock Adjustment -->
+    <div class="tab-content" id="tab-adjust">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:18px;">
+
+        <!-- Quick Adjustment Form -->
+        <div class="card">
+          <h3 style="color:var(--primary-light);margin-bottom:16px;">🔧 تعديل يدوي للمخزون</h3>
+          <div class="input-group" style="margin-bottom:12px;">
+            <label class="input-label">المنتج</label>
+            <select class="select-field" id="adjProduct" onchange="showAdjCurrentQty()">
+              <option value="">-- اختر منتجاً --</option>
+            </select>
+          </div>
+          <div id="adjCurrentInfo" style="display:none;background:var(--bg-dark);border-radius:var(--radius-sm);padding:10px 14px;margin-bottom:12px;font-size:0.88rem;">
+            الكمية الحالية: <b id="adjCurrentQty" style="color:var(--primary-light);font-size:1.1rem;">—</b>
+          </div>
+          <div class="input-group" style="margin-bottom:12px;">
+            <label class="input-label">نوع التعديل</label>
+            <select class="select-field" id="adjType" onchange="toggleAdjFields()">
+              <option value="add">➕ إضافة كمية (استلام بضاعة)</option>
+              <option value="sub">➖ خصم كمية (تلف / سرقة / هدية)</option>
+              <option value="set">📌 تعيين كمية محددة (جرد فعلي)</option>
+            </select>
+          </div>
+          <div class="input-group" style="margin-bottom:12px;">
+            <label class="input-label" id="adjQtyLabel">الكمية</label>
+            <input class="input-field" type="number" id="adjQty" placeholder="0" min="0" step="1" oninput="previewAdjResult()"/>
+          </div>
+          <div id="adjPreview" style="display:none;padding:8px 14px;border-radius:var(--radius-sm);margin-bottom:12px;font-size:0.9rem;font-weight:700;text-align:center;"></div>
+          <div class="input-group" style="margin-bottom:16px;">
+            <label class="input-label">السبب / الملاحظة *</label>
+            <select class="select-field" id="adjReason" onchange="toggleAdjCustomReason()">
+              <option value="استلام بضاعة">📦 استلام بضاعة</option>
+              <option value="تلف">💔 تلف</option>
+              <option value="سرقة">🚨 سرقة</option>
+              <option value="هدية / عينة">🎁 هدية / عينة</option>
+              <option value="تصحيح جرد">📋 تصحيح جرد</option>
+              <option value="خطأ إدخال">✏️ تصحيح خطأ إدخال</option>
+              <option value="آخر">✍️ آخر (اكتب)</option>
+            </select>
+          </div>
+          <div class="input-group" id="adjCustomReasonGroup" style="display:none;margin-bottom:16px;">
+            <label class="input-label">تفصيل السبب</label>
+            <input class="input-field" type="text" id="adjCustomReason" placeholder="اكتب السبب..."/>
+          </div>
+          <button class="btn btn-success btn-full" onclick="saveStockAdjustment()">
+            <i class="fa-solid fa-check"></i> تأكيد التعديل
+          </button>
+        </div>
+
+        <!-- Movement Log -->
+        <div class="card" style="padding:0;overflow:hidden;">
+          <div style="padding:14px 16px;background:var(--bg-dark);border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;">
+            <span style="font-weight:700;color:var(--primary-light);">📋 سجل حركة المخزون</span>
+            <div style="display:flex;gap:8px;">
+              <select class="input-field" id="logFilterProduct" style="width:140px;font-size:0.8rem;" onchange="loadMovementLog()">
+                <option value="0">كل المنتجات</option>
+              </select>
+              <button class="btn btn-sm btn-secondary" onclick="loadMovementLog()">🔄</button>
+            </div>
+          </div>
+          <div id="movementLogWrap" style="max-height:420px;overflow-y:auto;"></div>
+        </div>
+      </div>
+    </div>
+
+</div><!-- /page-wrapper -->
+
+<!-- Modal: Quick Adjust from product row -->
+<div class="modal-overlay" id="adjustModal">
+  <div class="modal" style="max-width:420px;">
+    <div class="modal-header">
+      <span class="modal-title">🔧 تعديل كمية المنتج</span>
+      <button class="modal-close" onclick="closeModal('adjustModal')">✕</button>
+    </div>
+    <div id="adjustModalBody"></div>
+    <div class="modal-footer">
+      <button class="btn btn-success" onclick="confirmModalAdjust()">✅ تأكيد</button>
+      <button class="btn btn-ghost"   onclick="closeModal('adjustModal')">إلغاء</button>
+    </div>
+  </div>
+</div>
 <div class="modal-overlay" id="importConfirmModal">
   <div class="modal">
     <div class="modal-header">
-      <span class="modal-title"><span data-i18n="invImportConfirm">تأكيد الاستيراد</span>
+      <span class="modal-title"><span data-i18n="invImportConfirm">تأكيد الاستيراد</span></span>
       <button class="modal-close" onclick="closeModal('importConfirmModal')">✕</button>
     </div>
     <div id="importConflicts"></div>
@@ -209,6 +296,7 @@
       <a class="nav-item" href="customers.html"><span class="nav-label" data-i18n="navCustomers">الزبائن</span></a>
       <a class="nav-item" href="reports.html" data-role="admin,manager"><span class="nav-label" data-i18n="navReports">إدارة الأعمال</span></a>
       <a class="nav-item" href="suppliers.html" data-role="admin,manager"><span class="nav-label" data-i18n="navSuppliers">الموردون</span></a>
+      <a class="nav-item" href="expenses.html" data-role="admin,manager"><span class="nav-label">المصاريف والعمال</span></a>
       <span class="nav-group-label" data-i18n="navGroupSystem">النظام</span>
       <a class="nav-item" href="users.html" data-role="admin"><span class="nav-label" data-i18n="navUsers">المستخدمون</span></a>
       <a class="nav-item" href="settings.html" data-role="admin,manager"><span class="nav-label" data-i18n="navSettings">الإعدادات</span></a>
@@ -251,18 +339,19 @@ async function init() {
     if (e.key === 'Enter') { e.preventDefault(); filterProducts(); }
   });
   document.getElementById('familyInput')?.addEventListener('keydown', e => {
-    if (e.key === 'Enter') { e.preventDefault(); saveFamily(); }
+    if (e.key === 'Enter') { e.preventDefault(); addFamily(); }
   });
 }
 
 function switchTab(name) {
-  document.querySelectorAll('.tab-btn').forEach((b,i) => b.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
   document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
-  const tabs = ['all','add','families','import'];
-  const idx = tabs.indexOf(name);
+  const tabs = ['all','add','adjust','families','import'];
+  const idx  = tabs.indexOf(name);
   document.querySelectorAll('.tab-btn')[idx]?.classList.add('active');
   document.getElementById('tab-' + name)?.classList.add('active');
-  if (name === 'all') loadProducts();
+  if (name === 'all')      loadProducts();
+  if (name === 'adjust')   { populateAdjProductSelect(); loadMovementLog(); }
   if (name === 'families') renderFamilies();
 }
 
@@ -322,8 +411,9 @@ function renderProducts(products) {
       <td>${alertBadge}</td>
       <td class="actions">
         <button class="btn btn-sm btn-secondary" title="طباعة ملصق الباركود" onclick="printBarcodeLabel(${JSON.stringify(p).replace(/"/g,'&quot;')})">🖨️</button>
-        <button class="btn btn-sm btn-primary" title="تعديل المنتج" onclick="editProduct(${p.id})">✏️</button>
-        <button class="btn btn-sm btn-danger" title="حذف المنتج" onclick="deleteProduct(${p.id})">🗑️</button>
+        <button class="btn btn-sm btn-warning"   title="تعديل الكمية"        onclick="openAdjustModal(${p.id})">🔧</button>
+        <button class="btn btn-sm btn-primary"   title="تعديل المنتج"        onclick="editProduct(${p.id})">✏️</button>
+        <button class="btn btn-sm btn-danger"    title="حذف المنتج"          onclick="deleteProduct(${p.id})">🗑️</button>
       </td>
     </tr>`;
   }).join('');
@@ -359,6 +449,7 @@ async function saveProduct() {
     buyPrice: parseFloat(document.getElementById('productBuyPrice').value) || 0,
     sellPrice: parseFloat(document.getElementById('productSellPrice').value) || 0,
     quantity: parseInt(document.getElementById('productQty').value) || 0,
+    minStock: parseInt(document.getElementById('productMinStock').value) || 5,
     expiryDate: document.getElementById('productExpiry').value || null,
     createdAt: new Date().toISOString()
   };
@@ -392,13 +483,22 @@ async function editProduct(id) {
   document.getElementById('productBuyPrice').value = p.buyPrice || '';
   document.getElementById('productSellPrice').value = p.sellPrice || '';
   document.getElementById('productQty').value = p.quantity || '';
+  document.getElementById('productMinStock').value = p.minStock || 5;
   document.getElementById('productExpiry').value = p.expiryDate || '';
   document.getElementById('productFamily').value = p.familyId || '';
   document.getElementById('formTitle').textContent = '✏️ تعديل المنتج';
 }
 
 async function deleteProduct(id) {
-  if (!await customConfirmAsync('هل تريد حذف هذا المنتج نهائياً؟')) return;
+  // التحقق من وجود مبيعات مرتبطة بهذا المنتج
+  const linked = await dbGetByIndex('saleItems', 'productId', id);
+  if (linked && linked.length > 0) {
+    if (!await customConfirmAsync(
+      `⚠️ هذا المنتج مرتبط بـ ${linked.length} عملية بيع سابقة.\nالحذف سيُبقي السجلات لكن بدون بيانات المنتج.\nهل تريد المتابعة؟`
+    )) return;
+  } else {
+    if (!await customConfirmAsync('هل تريد حذف هذا المنتج نهائياً؟')) return;
+  }
   await dbDelete('products', id);
   toast('تم حذف المنتج', 'success');
   loadProducts();
@@ -512,6 +612,232 @@ async function exportProducts() {
     quantity: p.quantity, expiry_date: p.expiryDate || ''
   }));
   exportCSV(data, 'products_export.csv');
+}
+
+// ══════════════════════════════════════════════════════════════
+// تعديل يدوي للمخزون
+// ══════════════════════════════════════════════════════════════
+function populateAdjProductSelect() {
+  const selAdj = document.getElementById('adjProduct');
+  const selLog = document.getElementById('logFilterProduct');
+  if (!selAdj) return;
+  const opts = '<option value="">-- اختر منتجاً --</option>' +
+    allProducts.map(p => `<option value="${p.id}">${p.name} (${p.quantity})</option>`).join('');
+  selAdj.innerHTML = opts;
+  if (selLog) {
+    selLog.innerHTML = '<option value="0">كل المنتجات</option>' +
+      allProducts.map(p => `<option value="${p.id}">${p.name}</option>`).join('');
+  }
+}
+
+function showAdjCurrentQty() {
+  const id  = parseInt(document.getElementById('adjProduct').value);
+  const box = document.getElementById('adjCurrentInfo');
+  if (!id) { box.style.display = 'none'; return; }
+  const p   = allProducts.find(x => x.id === id);
+  if (!p)   { box.style.display = 'none'; return; }
+  document.getElementById('adjCurrentQty').textContent = p.quantity + ' ' + (p.unit || 'وحدة');
+  box.style.display = 'block';
+  previewAdjResult();
+}
+
+function toggleAdjFields() {
+  const type = document.getElementById('adjType').value;
+  const lbl  = document.getElementById('adjQtyLabel');
+  lbl.textContent = type === 'set' ? 'الكمية الجديدة (الجرد الفعلي)' : 'الكمية';
+  // اضبط السبب الافتراضي
+  const reason = document.getElementById('adjReason');
+  if (type === 'add') reason.value = 'استلام بضاعة';
+  if (type === 'sub') reason.value = 'تلف';
+  if (type === 'set') reason.value = 'تصحيح جرد';
+  previewAdjResult();
+}
+
+function toggleAdjCustomReason() {
+  const v = document.getElementById('adjReason').value;
+  document.getElementById('adjCustomReasonGroup').style.display = v === 'آخر' ? '' : 'none';
+}
+
+function previewAdjResult() {
+  const id   = parseInt(document.getElementById('adjProduct').value);
+  const type = document.getElementById('adjType').value;
+  const qty  = parseInt(document.getElementById('adjQty').value) || 0;
+  const prev = document.getElementById('adjPreview');
+  if (!id || qty < 0) { prev.style.display = 'none'; return; }
+  const p    = allProducts.find(x => x.id === id);
+  if (!p)    { prev.style.display = 'none'; return; }
+  let newQty;
+  if      (type === 'add') newQty = p.quantity + qty;
+  else if (type === 'sub') newQty = Math.max(0, p.quantity - qty);
+  else                     newQty = qty;
+  const diff    = newQty - p.quantity;
+  const diffStr = diff > 0 ? `+${diff}` : `${diff}`;
+  const color   = diff > 0 ? 'var(--success)' : diff < 0 ? 'var(--danger)' : 'var(--text-secondary)';
+  prev.style.display = '';
+  prev.style.background = diff > 0 ? 'rgba(16,185,129,0.12)' : diff < 0 ? 'rgba(239,68,68,0.12)' : 'var(--bg-dark)';
+  prev.style.color = color;
+  prev.innerHTML = `${p.quantity} → <b style="font-size:1.1rem;">${newQty}</b> &nbsp;(${diffStr})`;
+}
+
+async function saveStockAdjustment(overrides = {}) {
+  const id     = overrides.productId || parseInt(document.getElementById('adjProduct').value);
+  const type   = overrides.type   || document.getElementById('adjType').value;
+  const qty    = overrides.qty    !== undefined ? overrides.qty : parseInt(document.getElementById('adjQty').value);
+  const reason = overrides.reason || (document.getElementById('adjReason').value === 'آخر'
+    ? document.getElementById('adjCustomReason').value.trim()
+    : document.getElementById('adjReason').value);
+
+  if (!id)             { toast('⚠️ اختر المنتج', 'warning'); return; }
+  if (isNaN(qty) || qty < 0) { toast('⚠️ أدخل كمية صحيحة', 'warning'); return; }
+  if (!reason)         { toast('⚠️ السبب مطلوب', 'warning'); return; }
+
+  const p = await dbGet('products', id);
+  if (!p)              { toast('⚠️ المنتج غير موجود', 'warning'); return; }
+
+  const oldQty = p.quantity;
+  let   newQty;
+  if      (type === 'add') newQty = oldQty + qty;
+  else if (type === 'sub') newQty = Math.max(0, oldQty - qty);
+  else                     newQty = qty;
+
+  // حفظ الحركة في logs
+  const user = getSession();
+  await dbAdd('logs', {
+    action   : 'stock_adjust',
+    productId: id,
+    productName: p.name,
+    type, reason,
+    oldQty, newQty,
+    diff : newQty - oldQty,
+    by   : user?.username || '—',
+    date : new Date().toISOString()
+  });
+
+  // تحديث المخزون
+  p.quantity = newQty;
+  await dbPut('products', p);
+
+  toast(`✅ ${p.name}: ${oldQty} → ${newQty}`, 'success');
+
+  // إعادة تحميل
+  allProducts = await dbGetAll('products');
+  renderProducts(allProducts);
+  populateAdjProductSelect();
+  loadMovementLog();
+
+  // مسح الحقول
+  if (!overrides.productId) {
+    document.getElementById('adjProduct').value = '';
+    document.getElementById('adjQty').value     = '';
+    document.getElementById('adjCurrentInfo').style.display = 'none';
+    document.getElementById('adjPreview').style.display     = 'none';
+  }
+}
+
+async function loadMovementLog() {
+  const wrap      = document.getElementById('movementLogWrap');
+  if (!wrap) return;
+  const filterPid = parseInt(document.getElementById('logFilterProduct')?.value) || 0;
+  const allLogs   = await dbGetAll('logs');
+  let   adjLogs   = allLogs
+    .filter(l => l.action === 'stock_adjust')
+    .sort((a, b) => new Date(b.date) - new Date(a.date))
+    .slice(0, 100);
+  if (filterPid) adjLogs = adjLogs.filter(l => l.productId === filterPid);
+  if (!adjLogs.length) {
+    wrap.innerHTML = '<div class="empty-state" style="padding:30px;"><div class="empty-icon">📋</div><p>لا توجد حركات مسجلة</p></div>';
+    return;
+  }
+  const typeLabel = { add: '➕ إضافة', sub: '➖ خصم', set: '📌 جرد' };
+  const rows = adjLogs.map(l => {
+    const diffStr = l.diff > 0 ? `+${l.diff}` : `${l.diff}`;
+    const color   = l.diff > 0 ? 'var(--success)' : l.diff < 0 ? 'var(--danger)' : 'var(--text-secondary)';
+    const d       = new Date(l.date);
+    const p2      = n => ('0'+n).slice(-2);
+    const dt      = d.getFullYear()+'/'+p2(d.getMonth()+1)+'/'+p2(d.getDate())+' '+p2(d.getHours())+':'+p2(d.getMinutes());
+    return `<tr>
+      <td style="font-size:0.78rem;color:var(--text-secondary);">${dt}</td>
+      <td><b>${l.productName||'—'}</b></td>
+      <td>${typeLabel[l.type]||l.type}</td>
+      <td style="text-align:center;">${l.oldQty} → <b>${l.newQty}</b></td>
+      <td style="text-align:center;font-weight:800;color:${color};">${diffStr}</td>
+      <td style="font-size:0.8rem;color:var(--text-secondary);">${l.reason||'—'}</td>
+      <td style="font-size:0.78rem;color:var(--text-secondary);">${l.by||'—'}</td>
+    </tr>`;
+  }).join('');
+  wrap.innerHTML = `<table class="data-table" style="font-size:0.83rem;">
+    <thead><tr>
+      <th>التاريخ</th><th>المنتج</th><th>النوع</th>
+      <th style="text-align:center;">الكمية</th><th style="text-align:center;">الفرق</th>
+      <th>السبب</th><th>بواسطة</th>
+    </tr></thead>
+    <tbody>${rows}</tbody>
+  </table>`;
+}
+
+// ── Modal quick adjust from row ──
+let _adjModalProductId = null;
+async function openAdjustModal(productId) {
+  _adjModalProductId = productId;
+  const p = allProducts.find(x => x.id === productId);
+  if (!p) return;
+  document.getElementById('adjustModalBody').innerHTML = `
+    <div style="background:var(--bg-dark);border-radius:var(--radius-sm);padding:10px 14px;margin-bottom:14px;">
+      <b style="color:var(--primary-light);">${p.name}</b>
+      &nbsp;|&nbsp; الكمية الحالية: <b id="mAdjCurrent" style="color:var(--primary-light);">${p.quantity}</b>
+    </div>
+    <div class="input-group" style="margin-bottom:12px;">
+      <label class="input-label">نوع التعديل</label>
+      <select class="select-field" id="mAdjType" onchange="updateMadjPreview()">
+        <option value="add">➕ إضافة</option>
+        <option value="sub">➖ خصم</option>
+        <option value="set">📌 تعيين (جرد)</option>
+      </select>
+    </div>
+    <div class="input-group" style="margin-bottom:12px;">
+      <label class="input-label">الكمية</label>
+      <input class="input-field" type="number" id="mAdjQty" placeholder="0" min="0" oninput="updateMadjPreview()"/>
+    </div>
+    <div id="mAdjPreview" style="padding:8px 14px;border-radius:var(--radius-sm);text-align:center;font-weight:700;margin-bottom:12px;display:none;"></div>
+    <div class="input-group">
+      <label class="input-label">السبب</label>
+      <select class="select-field" id="mAdjReason">
+        <option value="استلام بضاعة">📦 استلام بضاعة</option>
+        <option value="تلف">💔 تلف</option>
+        <option value="سرقة">🚨 سرقة</option>
+        <option value="هدية / عينة">🎁 هدية / عينة</option>
+        <option value="تصحيح جرد">📋 تصحيح جرد</option>
+        <option value="خطأ إدخال">✏️ تصحيح خطأ</option>
+        <option value="آخر">✍️ آخر</option>
+      </select>
+    </div>`;
+  openModal('adjustModal');
+}
+
+function updateMadjPreview() {
+  const p    = allProducts.find(x => x.id === _adjModalProductId);
+  if (!p) return;
+  const type = document.getElementById('mAdjType').value;
+  const qty  = parseInt(document.getElementById('mAdjQty').value) || 0;
+  let newQty;
+  if      (type === 'add') newQty = p.quantity + qty;
+  else if (type === 'sub') newQty = Math.max(0, p.quantity - qty);
+  else                     newQty = qty;
+  const diff  = newQty - p.quantity;
+  const color = diff > 0 ? 'var(--success)' : diff < 0 ? 'var(--danger)' : 'var(--text-secondary)';
+  const prev  = document.getElementById('mAdjPreview');
+  prev.style.display = '';
+  prev.style.color   = color;
+  prev.innerHTML = `${p.quantity} → <b style="font-size:1.1rem;">${newQty}</b> &nbsp;(${diff > 0 ? '+' : ''}${diff})`;
+}
+
+async function confirmModalAdjust() {
+  const type   = document.getElementById('mAdjType').value;
+  const qty    = parseInt(document.getElementById('mAdjQty').value);
+  const reason = document.getElementById('mAdjReason').value;
+  if (isNaN(qty) || qty < 0) { toast('⚠️ أدخل كمية صحيحة', 'warning'); return; }
+  await saveStockAdjustment({ productId: _adjModalProductId, type, qty, reason });
+  closeModal('adjustModal');
 }
 
 function doLogout() { customConfirm('هل تريد تسجيل الخروج؟', () => { clearSession(); window.location.href = 'index.html'; }); }
