@@ -1075,12 +1075,9 @@ function renderCart(){
     return `
     <div class="cart-item-row">
 
-      <!-- العائلة / المنتج: نفس الخط -->
-      <div style="display:flex;flex-direction:column;align-items:flex-start;gap:3px;">
-        <div style="display:flex;align-items:baseline;gap:6px;flex-wrap:wrap;">
-          <span style="font-size:1rem;font-weight:900;color:var(--text-primary);line-height:1.2;">${item.name}</span>
-          ${item.size ? `<span style="font-size:0.78rem;font-weight:600;color:var(--text-secondary);">${item.size}</span>` : ''}
-        </div>
+      <!-- العائلة / المنتج: اسم المنتج فقط بدون تكرار الحجم -->
+      <div style="display:flex;align-items:center;">
+        <span style="font-size:1rem;font-weight:900;color:var(--text-primary);line-height:1.2;white-space:normal;">${item.name}</span>
       </div>
 
       <!-- الحجم/الوحدة -->
