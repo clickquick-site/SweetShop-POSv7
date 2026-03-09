@@ -66,14 +66,44 @@
 
     <!-- Tabs -->
     <div class="tabs-bar">
-      <button class="tab-btn active" onclick="switchTab('expenses')">💸 المصاريف</button>
-      <button class="tab-btn"        onclick="switchTab('workers')">👷 العمال</button>
+      <button class="tab-btn active" onclick="switchTab('expenses')">💸 المصاريف العامة</button>
+      <button class="tab-btn"        onclick="switchTab('workers')">👷 مصاريف العمال</button>
     </div>
 
     <!-- ══════════════════════════════════════════════ -->
-    <!-- TAB: المصاريف                                  -->
+    <!-- TAB: المصاريف العامة                           -->
     <!-- ══════════════════════════════════════════════ -->
     <div class="tab-content active" id="tab-expenses">
+
+      <!-- فواتير ثابتة — تسجيل سريع -->
+      <div class="card" style="margin-bottom:16px;">
+        <h3 style="color:var(--primary-light);margin-bottom:14px;font-size:0.95rem;">⚡ فواتير ثابتة — تسجيل سريع</h3>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;">
+          <button class="btn" onclick="quickBill('كهرباء وغاز','⚡🔥')"
+            style="background:rgba(245,158,11,0.12);border:1px solid rgba(245,158,11,0.3);color:#fbbf24;font-weight:700;">
+            ⚡🔥 فاتورة الكهرباء والغاز
+          </button>
+          <button class="btn" onclick="quickBill('هاتف','📞')"
+            style="background:rgba(59,130,246,0.1);border:1px solid rgba(59,130,246,0.25);color:#60a5fa;font-weight:700;">
+            📞 فاتورة الهاتف
+          </button>
+          <button class="btn" onclick="quickBill('أنترنت','🌐')"
+            style="background:rgba(16,185,129,0.1);border:1px solid rgba(16,185,129,0.25);color:#34d399;font-weight:700;">
+            🌐 فاتورة الأنترنت
+          </button>
+        </div>
+        <!-- حقول الفاتورة السريعة -->
+        <div id="quickBillForm" style="display:none;margin-top:14px;padding:12px;background:var(--bg-dark);border-radius:8px;border:1px solid var(--border);">
+          <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+            <span id="quickBillLabel" style="font-weight:700;font-size:0.92rem;min-width:120px;"></span>
+            <input class="input-field" type="number" id="quickBillAmt"  placeholder="المبلغ..."   min="0" step="0.01" style="width:130px;"/>
+            <input class="input-field" type="date"   id="quickBillDate" style="width:145px;"/>
+            <input class="input-field" type="text"   id="quickBillNote" placeholder="ملاحظة..."   style="flex:1;min-width:120px;"/>
+            <button class="btn btn-success" onclick="saveQuickBill()"><i class="fa-solid fa-check"></i> حفظ</button>
+            <button class="btn btn-ghost"   onclick="document.getElementById('quickBillForm').style.display='none'">✕</button>
+          </div>
+        </div>
+      </div>
 
       <!-- إحصائيات -->
       <div class="exp-stats" id="expStats">
@@ -87,16 +117,16 @@
 
         <!-- نموذج الإضافة -->
         <div class="card">
-          <h3 style="color:var(--primary-light);margin-bottom:16px;font-size:1rem;">➕ إضافة مصروف</h3>
+          <h3 style="color:var(--primary-light);margin-bottom:16px;font-size:1rem;">➕ إضافة مصروف عام</h3>
           <input type="hidden" id="editExpId"/>
           <div class="input-group">
             <label class="input-label">الفئة</label>
             <select class="select-field" id="expCat" onchange="toggleCustomCat()">
-              <option value="كهرباء">⚡ كهرباء</option>
-              <option value="غاز">🔥 غاز</option>
+              <option value="كهرباء وغاز">⚡🔥 كهرباء وغاز</option>
+              <option value="هاتف">📞 هاتف</option>
+              <option value="أنترنت">🌐 أنترنت</option>
               <option value="كراء">🏠 كراء</option>
               <option value="سحب خاص">💰 سحب خاص</option>
-              <option value="عمال">👷 رواتب عمال</option>
               <option value="صيانة">🔧 صيانة</option>
               <option value="نقل">🚚 نقل / شحن</option>
               <option value="مستلزمات">📦 مستلزمات</option>
@@ -130,16 +160,16 @@
         <!-- القائمة -->
         <div class="card" style="padding:0;overflow:hidden;">
           <div style="padding:12px 16px;background:var(--bg-dark);border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;">
-            <span style="font-weight:700;color:var(--primary-light);">سجل المصاريف</span>
+            <span style="font-weight:700;color:var(--primary-light);">سجل المصاريف العامة</span>
             <div style="display:flex;gap:8px;flex-wrap:wrap;">
               <input class="input-field" type="date" id="filterExpDate" style="width:140px;font-size:0.82rem;" onchange="loadExpenses()"/>
               <select class="select-field" id="filterExpCat" style="width:130px;font-size:0.82rem;" onchange="loadExpenses()">
                 <option value="">كل الفئات</option>
-                <option value="كهرباء">⚡ كهرباء</option>
-                <option value="غاز">🔥 غاز</option>
+                <option value="كهرباء وغاز">⚡🔥 كهرباء وغاز</option>
+                <option value="هاتف">📞 هاتف</option>
+                <option value="أنترنت">🌐 أنترنت</option>
                 <option value="كراء">🏠 كراء</option>
                 <option value="سحب خاص">💰 سحب خاص</option>
-                <option value="عمال">👷 عمال</option>
                 <option value="صيانة">🔧 صيانة</option>
                 <option value="نقل">🚚 نقل</option>
                 <option value="مستلزمات">📦 مستلزمات</option>
@@ -153,7 +183,7 @@
     </div>
 
     <!-- ══════════════════════════════════════════════ -->
-    <!-- TAB: العمال                                    -->
+    <!-- TAB: مصاريف العمال                             -->
     <!-- ══════════════════════════════════════════════ -->
     <div class="tab-content" id="tab-workers">
 
@@ -296,11 +326,11 @@ function fmtDate(iso) {
   return d.getFullYear()+'/'+p(d.getMonth()+1)+'/'+p(d.getDate());
 }
 function catIcon(cat) {
-  const m={'كهرباء':'⚡','غاز':'🔥','كراء':'🏠','سحب خاص':'💰','عمال':'👷','صيانة':'🔧','نقل':'🚚','مستلزمات':'📦'};
+  const m={'كهرباء وغاز':'⚡🔥','هاتف':'📞','أنترنت':'🌐','كراء':'🏠','سحب خاص':'💰','عمال':'👷','صيانة':'🔧','نقل':'🚚','مستلزمات':'📦'};
   return m[cat]||'💸';
 }
 function catColor(cat) {
-  const m={'كهرباء':'#f59e0b','غاز':'#ef4444','كراء':'#3b82f6','سحب خاص':'#8b5cf6','عمال':'#10b981','صيانة':'#6b7280','نقل':'#0ea5e9','مستلزمات':'#f97316'};
+  const m={'كهرباء وغاز':'#f59e0b','هاتف':'#60a5fa','أنترنت':'#34d399','كراء':'#3b82f6','سحب خاص':'#8b5cf6','عمال':'#10b981','صيانة':'#6b7280','نقل':'#0ea5e9','مستلزمات':'#f97316'};
   return m[cat]||'#6b7280';
 }
 
@@ -331,8 +361,37 @@ function switchTab(name) {
 }
 
 /* ══════════════════════════════════════════════
-   قسم المصاريف
+   قسم المصاريف العامة
 ══════════════════════════════════════════════ */
+
+// ── فواتير ثابتة سريعة ───────────────────────
+let _quickBillCat = '';
+function quickBill(category, label) {
+  _quickBillCat = category;
+  const form = document.getElementById('quickBillForm');
+  document.getElementById('quickBillLabel').textContent = label + ' ' + category;
+  document.getElementById('quickBillAmt').value  = '';
+  document.getElementById('quickBillNote').value = '';
+  // تاريخ اليوم
+  const d = new Date(), p2 = n => ('0'+n).slice(-2);
+  document.getElementById('quickBillDate').value = `${d.getFullYear()}-${p2(d.getMonth()+1)}-${p2(d.getDate())}`;
+  form.style.display = '';
+  setTimeout(() => document.getElementById('quickBillAmt')?.focus(), 100);
+}
+
+async function saveQuickBill() {
+  const amt  = parseFloat(document.getElementById('quickBillAmt').value);
+  const date = document.getElementById('quickBillDate').value;
+  const note = document.getElementById('quickBillNote').value.trim();
+  if (!amt || amt <= 0) { if(typeof toast==='function') toast('أدخل المبلغ', 'warning'); return; }
+  if (!date)            { if(typeof toast==='function') toast('اختر التاريخ', 'warning'); return; }
+  await dbAdd('expenses', { category: _quickBillCat, amount: amt, date, note, createdAt: new Date().toISOString() });
+  document.getElementById('quickBillForm').style.display = 'none';
+  if(typeof toast==='function') toast(`✅ تم تسجيل فاتورة ${_quickBillCat}`, 'success');
+  await loadExpenses();
+  await updateStats();
+}
+
 function toggleCustomCat() {
   document.getElementById('customCatGroup').style.display =
     document.getElementById('expCat').value === 'أخرى' ? '' : 'none';
@@ -361,7 +420,7 @@ async function saveExpense() {
 
 function clearExpForm() {
   document.getElementById('editExpId').value = '';
-  document.getElementById('expCat').value    = 'كهرباء';
+  document.getElementById('expCat').value    = 'كهرباء وغاز';
   document.getElementById('expAmt').value    = '';
   document.getElementById('expNote').value   = '';
   document.getElementById('expDate').value   = todayIso();
