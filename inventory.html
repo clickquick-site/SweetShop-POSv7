@@ -491,7 +491,8 @@ async function editProduct(id) {
 
 async function deleteProduct(id) {
   // التحقق من وجود مبيعات مرتبطة بهذا المنتج
-  const linked = await dbGetByIndex('saleItems', 'productId', id);
+  const allItems = await dbGetAll('saleItems');
+  const linked = allItems.filter(i => i.productId === id);
   if (linked && linked.length > 0) {
     if (!await customConfirmAsync(
       `⚠️ هذا المنتج مرتبط بـ ${linked.length} عملية بيع سابقة.\nالحذف سيُبقي السجلات لكن بدون بيانات المنتج.\nهل تريد المتابعة؟`
