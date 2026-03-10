@@ -101,6 +101,10 @@
           🔗 <b>ربط المصاريف المسددة بسجل المداخيل اليومي</b>
           <div style="font-size:0.72rem;color:var(--text-secondary);margin-top:2px;">عند التشغيل: كل فاتورة تُسدَّد تُسجَّل كسطر خصم في سجل المداخيل</div>
         </div>
+        <button id="clearExpEntriesBtn" onclick="clearDailyEntries('مصروف عام')"
+          style="background:rgba(239,68,68,0.12);color:#ef4444;border:1px solid rgba(239,68,68,0.3);padding:5px 12px;border-radius:var(--radius-sm);font-family:var(--font-main);font-size:0.78rem;font-weight:700;cursor:pointer;white-space:nowrap;">
+          🗑️ مسح مصاريف اليوم
+        </button>
         <span class="sync-status" id="expSyncStatus">إيقاف</span>
         <label class="toggle-switch">
           <input type="checkbox" id="expSyncToggle" onchange="saveExpSyncState()"/>
@@ -206,6 +210,10 @@
           🔗 <b>ربط رواتب العمال بسجل المداخيل اليومي</b>
           <div style="font-size:0.72rem;color:var(--text-secondary);margin-top:2px;">عند التشغيل: كل راتب يُسدَّد يُسجَّل كسطر خصم في سجل مداخيل يوم التسديد</div>
         </div>
+        <button id="clearWorkerEntriesBtn" onclick="clearDailyEntries('راتب')"
+          style="background:rgba(239,68,68,0.12);color:#ef4444;border:1px solid rgba(239,68,68,0.3);padding:5px 12px;border-radius:var(--radius-sm);font-family:var(--font-main);font-size:0.78rem;font-weight:700;cursor:pointer;white-space:nowrap;">
+          🗑️ مسح رواتب اليوم
+        </button>
         <span class="sync-status" id="workerSyncStatus">إيقاف</span>
         <label class="toggle-switch">
           <input type="checkbox" id="workerSyncToggle" onchange="saveWorkerSyncState()"/>
@@ -390,6 +398,53 @@ function updateSyncUI() {
   if (wrkTog) wrkTog.checked = wrkOn;
   if (expSt)  { expSt.textContent = expOn ? 'تشغيل' : 'إيقاف'; expSt.className = 'sync-status ' + (expOn ? 'sync-on' : 'sync-off'); }
   if (wrkSt)  { wrkSt.textContent = wrkOn ? 'تشغيل' : 'إيقاف'; wrkSt.className = 'sync-status ' + (wrkOn ? 'sync-on' : 'sync-off'); }
+
+  // ── تعطيل زر المسح عند تشغيل الزر ──
+  const clearExpBtn    = document.getElementById('clearExpEntriesBtn');
+  const clearWorkerBtn = document.getElementById('clearWorkerEntriesBtn');
+  if (clearExpBtn) {
+    clearExpBtn.disabled = expOn;
+    clearExpBtn.style.opacity = expOn ? '0.35' : '1';
+    clearExpBtn.style.cursor  = expOn ? 'not-allowed' : 'pointer';
+    clearExpBtn.title = expOn ? '⛔ أوقف الربط أولاً قبل المسح' : 'مسح مصاريف اليوم من سجل المداخيل';
+  }
+  if (clearWorkerBtn) {
+    clearWorkerBtn.disabled = wrkOn;
+    clearWorkerBtn.style.opacity = wrkOn ? '0.35' : '1';
+    clearWorkerBtn.style.cursor  = wrkOn ? 'not-allowed' : 'pointer';
+    clearWorkerBtn.title = wrkOn ? '⛔ أوقف الربط أولاً قبل المسح' : 'مسح رواتب اليوم من سجل المداخيل';
+  }
+}
+
+/* ══════════════════════════════════════════════
+   دالة مسح سجلات اليوم حسب النوع
+   type: 'مصروف عام' | 'راتب'
+   — تمسح فقط السجلات من pos_dailyEntries
+   — لا تمس الفواتير أو الرواتب المسجّلة في IndexedDB
+   — مستحيل المسح إذا كان الزر مشغّلاً
+══════════════════════════════════════════════ */
+async function clearDailyEntries(type) {
+  // حماية: لا مسح إذا كان الزر مشغّلاً
+  if (type === 'مصروف عام' && isExpSyncOn()) {
+    toast('⛔ أوقف الربط أولاً قبل المسح', 'warning'); return;
+  }
+  if (type === 'راتب' && isWorkerSyncOn()) {
+    toast('⛔ أوقف الربط أولاً قبل المسح', 'warning'); return;
+  }
+
+  const label = type === 'راتب' ? 'رواتب العمال' : 'المصاريف العامة';
+  if (!await customConfirmAsync(`مسح سجلات "${label}" من سجل المداخيل اليومي؟\n⚠️ هذا لن يحذف الفواتير أو الرواتب الأصلية.`)) return;
+
+  const key = 'pos_dailyEntries_' + todayIso();
+  let entries = [];
+  try { entries = JSON.parse(localStorage.getItem(key) || '[]'); } catch(e) { entries = []; }
+
+  // احتفظ فقط بالسجلات من النوع الآخر
+  const remaining = entries.filter(e => e.type !== type);
+  localStorage.setItem(key, JSON.stringify(remaining));
+
+  const removed = entries.length - remaining.length;
+  toast(`✅ تم مسح ${removed} سجل من "${label}" في سجل المداخيل`, 'success');
 }
 
 /* ══════════════════════════════════════════════
